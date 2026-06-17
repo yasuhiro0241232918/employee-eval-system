@@ -99,7 +99,7 @@ export default function EmployeeDetail({ employee }: { employee: Employee }) {
   const [selectedFY, setSelectedFY] = useState(currentFiscalYear);
 
   // 存在する年度一覧
-  const fiscalYears = [...new Set(emp.attendance.map(a => getFiscalYear(a.year, a.month)))].sort((a, b) => b - a);
+  const fiscalYears = Array.from(new Set(emp.attendance.map(a => getFiscalYear(a.year, a.month)))).sort((a, b) => b - a);
   if (!fiscalYears.includes(currentFiscalYear)) fiscalYears.unshift(currentFiscalYear);
 
   // 選択年度の勤怠データ（4月〜翌3月）
