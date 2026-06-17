@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Employee {
+  id          String    @id @default(uuid())
+  name        String
+  birthDate   DateTime?
+  joinDate    DateTime?
+  department  String?
+  position    String?
+  grade       String?
+  gradeNumber String?
+  photo       String?   @db.Text
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  attendance     Attendance[]
+  qualifications Qualification[]
+  experiences    Experience[]
+  accidents      Accident[]
+  memos          Memo[]
+  interviews     Interview[]
+  aiEvaluations  AIEvaluation[]
+
+  @@index([name])
+  @@index([department])
+}
+
+model Attendance {
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  year       Int
+  month      Int
+  workDays   Int      @default(0)
+  paidLeave  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([employeeId, year, month])
+  @@index([employeeId])
+}
+
+model Qualification {
+  id         String    @id @default(uuid())
+  employeeId String
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  name       String
+  date       DateTime?
+  note       String?
+  createdAt  DateTime  @default(now())
+
+  @@index([employeeId])
+}
+
+model Experience {
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  content    String
+  period     String?
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@index([employeeId])
+}
+
+model Accident {
+  id         String    @id @default(uuid())
+  employeeId String
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       DateTime?
+  content    String
+  punishment String?
+  createdAt  DateTime  @default(now())
+
+  @@index([employeeId])
+}
+
+model Memo {
+  id         String    @id @default(uuid())
+  employeeId String
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       DateTime?
+  content    String
+  createdAt  DateTime  @default(now())
+
+  @@index([employeeId])
+}
+
+model Interview {
+  id          String    @id @default(uuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date        DateTime?
+  interviewer String?
+  content     String    @db.Text
+  createdAt   DateTime  @default(now())
+
+  @@index([employeeId])
+}
+
+model AIEvaluation {
+  id          String   @id @default(uuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  evaluatedAt DateTime @default(now())
+  score       Int
+  strengths   String   @db.Text
+  issues      String   @db.Text
+  summary     String   @db.Text
+  createdAt   DateTime @default(now())
+
+  @@index([employeeId])
+}
