@@ -91,10 +91,21 @@ export default function EmployeeDetail({ employee }: { employee: Employee }) {
 
   const scoreBg = (s: number) => s >= 80 ? "bg-green-100 text-green-700" : s >= 60 ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700";
   const today = new Date().toISOString().slice(0, 10);
-  const thisYear = new Date().getFullYear();
-  const yearAtt = emp.attendance.filter(a => a.year === thisYear);
-  const totalWork = yearAtt.reduce((s, a) => s + a.workDays, 0);
-  const totalLeave = yearAtt.reduce((s, a) => s + a.paidLeave, 0);
+
+  // 年度計算（4月始まり）
+  function getFiscalYear(year: number, month: number) { return month >= 4 ? year : year - 1; }
+  const now = new Date();
+  const currentFiscalYear = getFiscalYear(now.getFullYear(), now.getMonth() + 1);
+  const [selectedFY, setSelectedFY] = useState(currentFiscalYear);
+
+  // 存在する年度一覧
+  const fiscalYears = [...new Set(emp.attendance.map(a => getFiscalYear(a.year, a.month)))].sort((a, b) => b - a);
+  if (!fiscalYears.includes(currentFiscalYear)) fiscalYears.unshift(currentFiscalYear);
+
+  // 選択年度の勤怠データ（4月〜翌3月）
+  const fyAtt = emp.attendance.filter(a => getFiscalYear(a.year, a.month) === selectedFY);
+  const totalWork = fyAtt.reduce((s, a) => s + a.workDays, 0);
+  const totalLeave = fyAtt.reduce((s, a) => s + a.paidLeave, 0);
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-6">
@@ -162,15 +173,26 @@ export default function EmployeeDetail({ employee }: { employee: Employee }) {
           {/* 勤怠情報 */}
           {tab === 1 && (
             <div>
+              {/* 年度セレクター */}
+              <div className="flex items-center gap-3 mb-4">
+                <label className="text-xs font-semibold text-slate-500">年度</label>
+                <select value={selectedFY} onChange={e => setSelectedFY(Number(e.target.value))}
+                  className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-white outline-none focus:border-blue-400">
+                  {fiscalYears.map(fy => (
+                    <option key={fy} value={fy}>{fy}年度（{fy}/4〜{fy+1}/3）</option>
+                  ))}
+                </select>
+              </div>
+              {/* サマリー */}
               <div className="flex gap-6 bg-blue-50 rounded-xl p-4 mb-5">
-                <div className="text-center"><p className="text-2xl font-bold text-blue-700">{totalWork}</p><p className="text-xs text-slate-500 mt-0.5">今年の出勤日数</p></div>
-                <div className="text-center"><p className="text-2xl font-bold text-blue-700">{totalLeave}</p><p className="text-xs text-slate-500 mt-0.5">今年の有給取得</p></div>
+                <div className="text-center"><p className="text-2xl font-bold text-blue-700">{totalWork}</p><p className="text-xs text-slate-500 mt-0.5">{selectedFY}年度 出勤日数</p></div>
+                <div className="text-center"><p className="text-2xl font-bold text-blue-700">{totalLeave}</p><p className="text-xs text-slate-500 mt-0.5">{selectedFY}年度 有給取得</p></div>
               </div>
               <AttForm onAdd={async (y, m, w, l) => addRecord("attendance", { year: y, month: m, workDays: w, paidLeave: l })} />
-              {emp.attendance.length > 0 && (
+              {fyAtt.length > 0 && (
                 <table className="w-full text-sm mt-4">
                   <thead><tr className="border-b border-slate-100 text-xs text-slate-500 text-left">{["年","月","出勤日数","有給取得",""].map(h=><th key={h} className="pb-2 pr-4">{h}</th>)}</tr></thead>
-                  <tbody>{emp.attendance.map(a=>(
+                  <tbody>{fyAtt.sort((a,b) => a.year !== b.year ? a.year - b.year : a.month - b.month).map(a=>(
                     <tr key={`${a.year}-${a.month}`} className="border-b border-slate-50 hover:bg-slate-50">
                       <td className="py-2 pr-4">{a.year}</td><td className="py-2 pr-4">{a.month}月</td>
                       <td className="py-2 pr-4">{a.workDays}日</td><td className="py-2 pr-4">{a.paidLeave}日</td>
@@ -179,6 +201,7 @@ export default function EmployeeDetail({ employee }: { employee: Employee }) {
                   ))}</tbody>
                 </table>
               )}
+              {fyAtt.length === 0 && <p className="text-sm text-slate-400 mt-4">この年度のデータがありません</p>}
             </div>
           )}
 
