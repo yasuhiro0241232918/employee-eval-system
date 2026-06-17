@@ -6,7 +6,7 @@ import Link from "next/link";
 type Employee = {
   id: string; name: string; birthDate: string | null; joinDate: string | null;
   department: string | null; position: string | null; grade: string | null;
-  gradeNumber: string | null; photo: string | null;
+  gradeNumber: string | null; company: string | null; photo: string | null;
   attendance: { id: string; year: number; month: number; workDays: number; paidLeave: number }[];
   qualifications: { id: string; name: string; date: string | null; note: string | null }[];
   experiences: { id: string; content: string; period: string | null; note: string | null }[];
@@ -143,6 +143,7 @@ export default function EmployeeDetail({ employee }: { employee: Employee }) {
             <div className="grid grid-cols-2 gap-4">
               {[
                 ["氏名", emp.name],
+                ["所属会社", emp.company ?? "—"],
                 ["生年月日", emp.birthDate ? `${fmt(emp.birthDate)}（${calcAge(emp.birthDate)}）` : "—"],
                 ["入社日", emp.joinDate ? `${fmt(emp.joinDate)}（${calcTenure(emp.joinDate)}）` : "—"],
                 ["部署", emp.department ?? "—"],

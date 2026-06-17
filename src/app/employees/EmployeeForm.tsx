@@ -3,11 +3,13 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+const COMPANIES = ["鈴木総業", "ミヤツリサイクル", "ヤマトコーポレーション", "チャールズデザイン", "ガレージファクトリー", "ENEOSキタカタSS"];
+
 type Props = {
   employee?: {
     id: string; name: string; birthDate: string | null; joinDate: string | null;
     department: string | null; position: string | null;
-    grade: string | null; gradeNumber: string | null; photo: string | null;
+    grade: string | null; gradeNumber: string | null; company: string | null; photo: string | null;
   };
 };
 
@@ -55,6 +57,7 @@ export default function EmployeeForm({ employee }: Props) {
       position: fd.get("position") || null,
       grade: fd.get("grade") || null,
       gradeNumber: fd.get("gradeNumber") || null,
+      company: fd.get("company") || null,
       photo,
     };
     const url = isEdit ? `/api/employees/${employee.id}` : "/api/employees";
@@ -101,8 +104,20 @@ export default function EmployeeForm({ employee }: Props) {
 
         {/* Fields */}
         <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <label className="block text-xs font-semibold text-slate-600 mb-1">氏名 *</label>
+            <input name="name" type="text" required defaultValue={employee?.name ?? ""} placeholder="山田 太郎"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-xs font-semibold text-slate-600 mb-1">所属会社</label>
+            <select name="company" defaultValue={employee?.company ?? ""}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white">
+              <option value="">選択してください</option>
+              {COMPANIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
           {[
-            { label: "氏名 *", name: "name", required: true, defaultValue: employee?.name, type: "text", placeholder: "山田 太郎", span: 2 },
             { label: "生年月日", name: "birthDate", type: "date", defaultValue: employee?.birthDate?.slice(0, 10) },
             { label: "入社日", name: "joinDate", type: "date", defaultValue: employee?.joinDate?.slice(0, 10) },
             { label: "部署", name: "department", type: "text", placeholder: "営業部", defaultValue: employee?.department },
@@ -110,12 +125,11 @@ export default function EmployeeForm({ employee }: Props) {
             { label: "等級", name: "grade", type: "text", placeholder: "3", defaultValue: employee?.grade },
             { label: "号数", name: "gradeNumber", type: "text", placeholder: "5", defaultValue: employee?.gradeNumber },
           ].map((f) => (
-            <div key={f.name} className={f.span === 2 ? "col-span-2" : ""}>
+            <div key={f.name}>
               <label className="block text-xs font-semibold text-slate-600 mb-1">{f.label}</label>
               <input
                 name={f.name}
                 type={f.type ?? "text"}
-                required={f.required}
                 defaultValue={f.defaultValue ?? ""}
                 placeholder={f.placeholder}
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
