@@ -5,7 +5,7 @@ import Link from "next/link";
 
 const COMPANIES = ["鈴木総業", "ミヤツリサイクル", "ガレージファクトリー", "ENEOSキタカタSS"];
 const DEPARTMENTS = ["工事部", "砕石事業部", "営業部", "技術管理部", "総務部"];
-const POSITIONS = ["代表取締役社長", "取締役", "部長", "課長", "職長", "主任", "店長", "工場長"];
+const POSITIONS = ["会長", "相談役", "顧問", "代表取締役社長", "取締役", "部長", "課長", "職長", "主任", "店長", "工場長"];
 const EMPLOYMENT_TYPES = ["正社員", "期間社員", "パート・アルバイト"];
 const AIZU_MUNICIPALITIES = [
   "会津若松市", "喜多方市",
