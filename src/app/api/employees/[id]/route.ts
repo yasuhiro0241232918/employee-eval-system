@@ -31,6 +31,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       grade: body.grade ?? null,
       gradeNumber: body.gradeNumber ?? null,
       company: body.company ?? null,
+      address: body.address ?? null,
       ...(body.photo !== undefined ? { photo: body.photo } : {}),
     },
   });

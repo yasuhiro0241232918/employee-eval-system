@@ -12,7 +12,7 @@ export default async function EditEmployeePage({ params }: { params: { id: strin
 
   const emp = await prisma.employee.findUnique({
     where: { id: params.id },
-    select: { id: true, name: true, birthDate: true, joinDate: true, department: true, position: true, grade: true, gradeNumber: true, company: true, photo: true },
+    select: { id: true, name: true, birthDate: true, joinDate: true, department: true, position: true, grade: true, gradeNumber: true, company: true, address: true, photo: true },
   });
   if (!emp) notFound();
 

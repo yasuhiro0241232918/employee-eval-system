@@ -6,7 +6,7 @@ import Link from "next/link";
 type Employee = {
   id: string; name: string; birthDate: string | null; joinDate: string | null;
   department: string | null; position: string | null; grade: string | null;
-  gradeNumber: string | null; company: string | null; photo: string | null;
+  gradeNumber: string | null; company: string | null; address: string | null; photo: string | null;
   attendance: { id: string; year: number; month: number; workDays: number; paidLeave: number }[];
   qualifications: { id: string; name: string; date: string | null; note: string | null }[];
   experiences: { id: string; content: string; period: string | null; note: string | null }[];
@@ -165,6 +165,7 @@ export default function EmployeeDetail({ employee, role }: { employee: Employee;
                 ["入社日", emp.joinDate ? `${fmt(emp.joinDate)}（${calcTenure(emp.joinDate)}）` : "—"],
                 ["部署", emp.department ?? "—"],
                 ["役職", emp.position ?? "—"],
+                ["住所", emp.address ?? "—"],
                 ["等級", emp.grade ?? "—"],
                 ["号数", emp.gradeNumber ?? "—"],
               ].map(([label, value]) => (

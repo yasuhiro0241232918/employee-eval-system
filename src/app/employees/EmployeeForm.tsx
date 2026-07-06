@@ -9,7 +9,7 @@ type Props = {
   employee?: {
     id: string; name: string; birthDate: string | null; joinDate: string | null;
     department: string | null; position: string | null;
-    grade: string | null; gradeNumber: string | null; company: string | null; photo: string | null;
+    grade: string | null; gradeNumber: string | null; company: string | null; address: string | null; photo: string | null;
   };
 };
 
@@ -58,6 +58,7 @@ export default function EmployeeForm({ employee }: Props) {
       grade: fd.get("grade") || null,
       gradeNumber: fd.get("gradeNumber") || null,
       company: fd.get("company") || null,
+      address: fd.get("address") || null,
       photo,
     };
     const url = isEdit ? `/api/employees/${employee.id}` : "/api/employees";
@@ -124,6 +125,7 @@ export default function EmployeeForm({ employee }: Props) {
             { label: "役職", name: "position", type: "text", placeholder: "課長", defaultValue: employee?.position },
             { label: "等級", name: "grade", type: "text", placeholder: "3", defaultValue: employee?.grade },
             { label: "号数", name: "gradeNumber", type: "text", placeholder: "5", defaultValue: employee?.gradeNumber },
+            { label: "住所", name: "address", type: "text", placeholder: "福島県喜多方市...", defaultValue: employee?.address },
           ].map((f) => (
             <div key={f.name}>
               <label className="block text-xs font-semibold text-slate-600 mb-1">{f.label}</label>
