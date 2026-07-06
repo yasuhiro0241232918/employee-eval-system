@@ -7,7 +7,7 @@ const COMPANIES = ["鈴木総業", "ミヤツリサイクル", "ヤマトコー�
 
 type Props = {
   employee?: {
-    id: string; name: string; birthDate: string | null; joinDate: string | null;
+    id: string; employeeNo: string | null; name: string; birthDate: string | null; joinDate: string | null;
     department: string | null; position: string | null;
     grade: string | null; gradeNumber: string | null; company: string | null; address: string | null; photo: string | null;
   };
@@ -55,6 +55,7 @@ export default function EmployeeForm({ employee }: Props) {
       joinDate: fd.get("joinDate") || null,
       department: fd.get("department") || null,
       position: fd.get("position") || null,
+      employeeNo: fd.get("employeeNo") || null,
       grade: fd.get("grade") || null,
       gradeNumber: fd.get("gradeNumber") || null,
       company: fd.get("company") || null,
@@ -105,7 +106,12 @@ export default function EmployeeForm({ employee }: Props) {
 
         {/* Fields */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">社員No.</label>
+            <input name="employeeNo" type="text" defaultValue={employee?.employeeNo ?? ""} placeholder="001"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
+          </div>
+          <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">氏名 *</label>
             <input name="name" type="text" required defaultValue={employee?.name ?? ""} placeholder="山田 太郎"
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />

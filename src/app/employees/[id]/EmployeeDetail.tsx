@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 type Employee = {
-  id: string; name: string; birthDate: string | null; joinDate: string | null;
+  id: string; employeeNo: string | null; name: string; birthDate: string | null; joinDate: string | null;
   department: string | null; position: string | null; grade: string | null;
   gradeNumber: string | null; company: string | null; address: string | null; photo: string | null;
   attendance: { id: string; year: number; month: number; workDays: number; paidLeave: number }[];
@@ -159,6 +159,7 @@ export default function EmployeeDetail({ employee, role }: { employee: Employee;
           {tab === 0 && (
             <div className="grid grid-cols-2 gap-4">
               {[
+                ["社員No.", emp.employeeNo ?? "—"],
                 ["氏名", emp.name],
                 ["所属会社", emp.company ?? "—"],
                 ["生年月日", emp.birthDate ? `${fmt(emp.birthDate)}（${calcAge(emp.birthDate)}）` : "—"],

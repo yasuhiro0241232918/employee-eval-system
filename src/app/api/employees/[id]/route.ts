@@ -28,6 +28,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       joinDate: body.joinDate ? new Date(body.joinDate) : null,
       department: body.department ?? null,
       position: body.position ?? null,
+      employeeNo: body.employeeNo ?? null,
       grade: body.grade ?? null,
       gradeNumber: body.gradeNumber ?? null,
       company: body.company ?? null,

@@ -12,9 +12,13 @@ function parseDate(val: unknown): Date | null {
   }
   const s = String(val).trim();
   if (!s) return null;
-  const normalized = s.replace(/\//g, "-");
-  const d = new Date(normalized);
+  const d = new Date(s.replace(/\//g, "-"));
   return isNaN(d.getTime()) ? null : d;
+}
+
+function str(val: unknown): string | null {
+  const s = String(val ?? "").trim();
+  return s || null;
 }
 
 export async function POST(req: NextRequest) {
@@ -31,25 +35,49 @@ export async function POST(req: NextRequest) {
     const results: { name: string; status: string }[] = [];
 
     for (const row of rows) {
-      const name = String(row["氏名"] ?? "").trim();
+      const name = str(row["氏名"]);
       if (!name) continue;
 
-      const company = String(row["所属会社"] ?? "").trim();
-      const validCompany = COMPANIES.includes(company) ? company : null;
+      // ノート行をスキップ
+      if (name.startsWith("※")) continue;
+
+      const employeeNo = str(row["社員No."]);
+      const company = str(row["所属会社"]);
+      const validCompany = company && COMPANIES.includes(company) ? company : null;
+
+      const data = {
+        name,
+        birthDate: parseDate(row["生年月日"]),
+        joinDate: parseDate(row["入社日"]),
+        address: str(row["住所"]),
+        company: validCompany,
+        department: str(row["部署"]),
+        position: str(row["役職"]),
+      };
 
       try {
-        await prisma.employee.create({
-          data: {
-            name,
-            birthDate: parseDate(row["生年月日"]),
-            joinDate: parseDate(row["入社日"]),
-            address: String(row["住所"] ?? "").trim() || null,
-            company: validCompany,
-            department: String(row["部署"] ?? "").trim() || null,
-            position: String(row["役職"] ?? "").trim() || null,
-          },
-        });
-        results.push({ name, status: "登録済" });
+        if (employeeNo) {
+          // 社員No.あり → 更新（空欄でない項目のみ上書き）
+          const existing = await prisma.employee.findUnique({ where: { employeeNo } });
+          if (!existing) {
+            results.push({ name, status: "エラー（社員No.が見つかりません）" });
+            continue;
+          }
+          const updateData: Record<string, unknown> = { name };
+          if (data.birthDate) updateData.birthDate = data.birthDate;
+          if (data.joinDate) updateData.joinDate = data.joinDate;
+          if (data.address) updateData.address = data.address;
+          if (data.company) updateData.company = data.company;
+          if (data.department) updateData.department = data.department;
+          if (data.position) updateData.position = data.position;
+
+          await prisma.employee.update({ where: { employeeNo }, data: updateData });
+          results.push({ name, status: "更新済" });
+        } else {
+          // 社員No.なし → 新規作成
+          await prisma.employee.create({ data });
+          results.push({ name, status: "新規登録" });
+        }
       } catch {
         results.push({ name, status: "エラー" });
       }
