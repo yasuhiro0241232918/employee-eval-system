@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
         name,
         birthDate: parseDate(row["生年月日"]),
         joinDate: parseDate(row["入社日"]),
-        address: str(row["住所"]),
+        address: str(row["市町村"]),
         company: validCompany,
         department: str(row["部署"]),
         position: str(row["役職"]),

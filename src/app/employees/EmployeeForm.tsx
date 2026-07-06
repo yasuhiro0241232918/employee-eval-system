@@ -5,6 +5,13 @@ import Link from "next/link";
 
 const COMPANIES = ["鈴木総業", "ミヤツリサイクル", "ヤマトコーポレーション", "チャールズデザイン", "ガレージファクトリー", "ENEOSキタカタSS"];
 
+const AIZU_MUNICIPALITIES = [
+  "会津若松市", "喜多方市",
+  "会津坂下町", "湯川村", "柳津町", "三島町", "金山町", "昭和村", "会津美里町",
+  "西会津町", "磐梯町", "猪苗代町", "北塩原村",
+  "下郷町", "檜枝岐村", "只見町", "南会津町",
+];
+
 type Props = {
   employee?: {
     id: string; employeeNo: string | null; name: string; birthDate: string | null; joinDate: string | null;
@@ -131,7 +138,6 @@ export default function EmployeeForm({ employee }: Props) {
             { label: "役職", name: "position", type: "text", placeholder: "課長", defaultValue: employee?.position },
             { label: "等級", name: "grade", type: "text", placeholder: "3", defaultValue: employee?.grade },
             { label: "号数", name: "gradeNumber", type: "text", placeholder: "5", defaultValue: employee?.gradeNumber },
-            { label: "住所", name: "address", type: "text", placeholder: "福島県喜多方市...", defaultValue: employee?.address },
           ].map((f) => (
             <div key={f.name}>
               <label className="block text-xs font-semibold text-slate-600 mb-1">{f.label}</label>
@@ -144,6 +150,14 @@ export default function EmployeeForm({ employee }: Props) {
               />
             </div>
           ))}
+          <div className="col-span-2">
+            <label className="block text-xs font-semibold text-slate-600 mb-1">市町村（会津管内）</label>
+            <select name="address" defaultValue={employee?.address ?? ""}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white">
+              <option value="">選択してください</option>
+              {AIZU_MUNICIPALITIES.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
         </div>
 
         {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
