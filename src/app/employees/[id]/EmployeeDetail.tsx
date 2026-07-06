@@ -6,7 +6,7 @@ import Link from "next/link";
 type Employee = {
   id: string; employeeNo: string | null; name: string; birthDate: string | null; joinDate: string | null;
   department: string | null; position: string | null; grade: string | null;
-  gradeNumber: string | null; company: string | null; address: string | null; photo: string | null;
+  gradeNumber: string | null; company: string | null; address: string | null; employmentType: string | null; photo: string | null;
   attendance: { id: string; year: number; month: number; workDays: number; paidLeave: number }[];
   qualifications: { id: string; name: string; date: string | null; note: string | null }[];
   experiences: { id: string; content: string; period: string | null; note: string | null }[];
@@ -162,10 +162,11 @@ export default function EmployeeDetail({ employee, role }: { employee: Employee;
                 ["社員No.", emp.employeeNo ?? "—"],
                 ["氏名", emp.name],
                 ["所属会社", emp.company ?? "—"],
+                ["所属部", emp.department ?? "—"],
+                ["役職", emp.position ?? "—"],
+                ["雇用形態", emp.employmentType ?? "—"],
                 ["生年月日", emp.birthDate ? `${fmt(emp.birthDate)}（${calcAge(emp.birthDate)}）` : "—"],
                 ["入社日", emp.joinDate ? `${fmt(emp.joinDate)}（${calcTenure(emp.joinDate)}）` : "—"],
-                ["部署", emp.department ?? "—"],
-                ["役職", emp.position ?? "—"],
                 ["住所（市町村）", emp.address ?? "—"],
                 ["等級", emp.grade ?? "—"],
                 ["号数", emp.gradeNumber ?? "—"],

@@ -33,6 +33,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       gradeNumber: body.gradeNumber ?? null,
       company: body.company ?? null,
       address: body.address ?? null,
+      employmentType: body.employmentType ?? null,
       ...(body.photo !== undefined ? { photo: body.photo } : {}),
     },
   });

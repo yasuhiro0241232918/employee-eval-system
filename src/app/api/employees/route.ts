@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "asc" },
     select: {
       id: true, name: true, department: true, position: true,
-      joinDate: true, birthDate: true, photo: true, grade: true, gradeNumber: true, company: true, address: true,
+      joinDate: true, birthDate: true, photo: true, grade: true, gradeNumber: true, company: true, address: true, employmentType: true,
     },
   });
   return NextResponse.json(employees);
@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
       gradeNumber: body.gradeNumber ?? null,
       company: body.company ?? null,
       address: body.address ?? null,
+      employmentType: body.employmentType ?? null,
       photo: body.photo ?? null,
     },
   });

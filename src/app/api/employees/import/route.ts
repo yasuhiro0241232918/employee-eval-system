@@ -51,8 +51,9 @@ export async function POST(req: NextRequest) {
         joinDate: parseDate(row["入社日"]),
         address: str(row["市町村"]),
         company: validCompany,
-        department: str(row["部署"]),
+        department: str(row["所属部"]),
         position: str(row["役職"]),
+        employmentType: str(row["雇用形態"]),
       };
 
       try {
@@ -70,6 +71,7 @@ export async function POST(req: NextRequest) {
           if (data.company) updateData.company = data.company;
           if (data.department) updateData.department = data.department;
           if (data.position) updateData.position = data.position;
+          if (data.employmentType) updateData.employmentType = data.employmentType;
 
           await prisma.employee.update({ where: { employeeNo }, data: updateData });
           results.push({ name, status: "更新済" });

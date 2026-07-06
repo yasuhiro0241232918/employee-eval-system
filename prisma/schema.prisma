@@ -25,10 +25,11 @@ model Employee {
   joinDate    DateTime?
   department  String?
   position    String?
-  grade       String?
-  gradeNumber String?
-  company     String?
-  address     String?
+  grade          String?
+  gradeNumber    String?
+  company        String?
+  address        String?
+  employmentType String?
   photo       String?   @db.Text
   deletedAt   DateTime?
   createdAt   DateTime  @default(now())

@@ -3,8 +3,10 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-const COMPANIES = ["鈴木総業", "ミヤツリサイクル", "ヤマトコーポレーション", "チャールズデザイン", "ガレージファクトリー", "ENEOSキタカタSS"];
-
+const COMPANIES = ["鈴木総業", "ミヤツリサイクル", "ガレージファクトリー", "ENEOSキタカタSS"];
+const DEPARTMENTS = ["工事部", "砕石事業部", "営業部", "技術管理部", "総務部"];
+const POSITIONS = ["代表取締役社長", "取締役", "部長", "課長", "職長", "主任", "店長", "工場長"];
+const EMPLOYMENT_TYPES = ["正社員", "期間社員", "パート・アルバイト"];
 const AIZU_MUNICIPALITIES = [
   "会津若松市", "喜多方市",
   "会津坂下町", "湯川村", "柳津町", "三島町", "金山町", "昭和村", "会津美里町",
@@ -12,11 +14,15 @@ const AIZU_MUNICIPALITIES = [
   "下郷町", "檜枝岐村", "只見町", "南会津町",
 ];
 
+const SEL_CLASS = "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white";
+const INPUT_CLASS = "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100";
+
 type Props = {
   employee?: {
     id: string; employeeNo: string | null; name: string; birthDate: string | null; joinDate: string | null;
     department: string | null; position: string | null;
-    grade: string | null; gradeNumber: string | null; company: string | null; address: string | null; photo: string | null;
+    grade: string | null; gradeNumber: string | null; company: string | null; address: string | null;
+    employmentType: string | null; photo: string | null;
   };
 };
 
@@ -67,6 +73,7 @@ export default function EmployeeForm({ employee }: Props) {
       gradeNumber: fd.get("gradeNumber") || null,
       company: fd.get("company") || null,
       address: fd.get("address") || null,
+      employmentType: fd.get("employmentType") || null,
       photo,
     };
     const url = isEdit ? `/api/employees/${employee.id}` : "/api/employees";
@@ -81,6 +88,16 @@ export default function EmployeeForm({ employee }: Props) {
       setError("保存に失敗しました");
     }
   }
+
+  const selectField = (label: string, name: string, options: string[], value: string | null) => (
+    <div key={name}>
+      <label className="block text-xs font-semibold text-slate-600 mb-1">{label}</label>
+      <select name={name} defaultValue={value ?? ""} className={SEL_CLASS}>
+        <option value="">選択してください</option>
+        {options.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-8">
@@ -115,45 +132,40 @@ export default function EmployeeForm({ employee }: Props) {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">社員No.</label>
-            <input name="employeeNo" type="text" defaultValue={employee?.employeeNo ?? ""} placeholder="001"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
+            <input name="employeeNo" type="text" defaultValue={employee?.employeeNo ?? ""} placeholder="001" className={INPUT_CLASS} />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">氏名 *</label>
-            <input name="name" type="text" required defaultValue={employee?.name ?? ""} placeholder="山田 太郎"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
+            <input name="name" type="text" required defaultValue={employee?.name ?? ""} placeholder="山田 太郎" className={INPUT_CLASS} />
           </div>
+
           <div className="col-span-2">
-            <label className="block text-xs font-semibold text-slate-600 mb-1">所属会社</label>
-            <select name="company" defaultValue={employee?.company ?? ""}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white">
-              <option value="">選択してください</option>
-              {COMPANIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            {selectField("所属会社", "company", COMPANIES, employee?.company ?? null)}
           </div>
-          {[
-            { label: "生年月日", name: "birthDate", type: "date", defaultValue: employee?.birthDate?.slice(0, 10) },
-            { label: "入社日", name: "joinDate", type: "date", defaultValue: employee?.joinDate?.slice(0, 10) },
-            { label: "部署", name: "department", type: "text", placeholder: "営業部", defaultValue: employee?.department },
-            { label: "役職", name: "position", type: "text", placeholder: "課長", defaultValue: employee?.position },
-            { label: "等級", name: "grade", type: "text", placeholder: "3", defaultValue: employee?.grade },
-            { label: "号数", name: "gradeNumber", type: "text", placeholder: "5", defaultValue: employee?.gradeNumber },
-          ].map((f) => (
-            <div key={f.name}>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">{f.label}</label>
-              <input
-                name={f.name}
-                type={f.type ?? "text"}
-                defaultValue={f.defaultValue ?? ""}
-                placeholder={f.placeholder}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
-          ))}
+          {selectField("所属部", "department", DEPARTMENTS, employee?.department ?? null)}
+          {selectField("役職", "position", POSITIONS, employee?.position ?? null)}
+          {selectField("雇用形態", "employmentType", EMPLOYMENT_TYPES, employee?.employmentType ?? null)}
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">生年月日</label>
+            <input name="birthDate" type="date" defaultValue={employee?.birthDate?.slice(0, 10) ?? ""} className={INPUT_CLASS} />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">入社日</label>
+            <input name="joinDate" type="date" defaultValue={employee?.joinDate?.slice(0, 10) ?? ""} className={INPUT_CLASS} />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">等級</label>
+            <input name="grade" type="text" defaultValue={employee?.grade ?? ""} placeholder="3" className={INPUT_CLASS} />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">号数</label>
+            <input name="gradeNumber" type="text" defaultValue={employee?.gradeNumber ?? ""} placeholder="5" className={INPUT_CLASS} />
+          </div>
+
           <div className="col-span-2">
             <label className="block text-xs font-semibold text-slate-600 mb-1">住所（市町村）</label>
-            <select name="address" defaultValue={employee?.address ?? ""}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white">
+            <select name="address" defaultValue={employee?.address ?? ""} className={SEL_CLASS}>
               <option value="">選択してください</option>
               {AIZU_MUNICIPALITIES.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
