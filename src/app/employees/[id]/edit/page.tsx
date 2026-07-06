@@ -1,9 +1,15 @@
 import { prisma } from "@/lib/prisma";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Header from "@/components/ui/Header";
 import EmployeeForm from "../../EmployeeForm";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export default async function EditEmployeePage({ params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions);
+  const role = (session?.user as { role?: string })?.role ?? "staff";
+  if (role !== "admin") redirect(`/employees/${params.id}`);
+
   const emp = await prisma.employee.findUnique({
     where: { id: params.id },
     select: { id: true, name: true, birthDate: true, joinDate: true, department: true, position: true, grade: true, gradeNumber: true, company: true, photo: true },

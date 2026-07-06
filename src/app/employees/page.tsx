@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import Header from "@/components/ui/Header";
 import SearchEmployees from "./SearchEmployees";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 function calcTenure(joinDate: Date | null) {
   if (!joinDate) return null;
@@ -17,6 +19,8 @@ export default async function EmployeesPage({
 }: {
   searchParams: { q?: string };
 }) {
+  const session = await getServerSession(authOptions);
+  const role = (session?.user as { role?: string })?.role ?? "staff";
   const q = searchParams.q ?? "";
   const employees = await prisma.employee.findMany({
     where: {
@@ -38,13 +42,15 @@ export default async function EmployeesPage({
       <main className="max-w-6xl mx-auto px-6 py-6">
         <div className="flex items-center gap-3 mb-6">
           <SearchEmployees defaultValue={q} />
-          <Link
-            href="/employees/new"
-            className="flex items-center gap-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition whitespace-nowrap"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            社員追加
-          </Link>
+          {role === "admin" && (
+            <Link
+              href="/employees/new"
+              className="flex items-center gap-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition whitespace-nowrap"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              社員追加
+            </Link>
+          )}
         </div>
 
         {employees.length === 0 ? (

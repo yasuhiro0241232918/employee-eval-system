@@ -2,8 +2,13 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Header from "@/components/ui/Header";
 import EmployeeDetail from "./EmployeeDetail";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export default async function EmployeeDetailPage({ params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions);
+  const role = (session?.user as { role?: string })?.role ?? "staff";
+
   const emp = await prisma.employee.findUnique({
     where: { id: params.id },
     include: {
@@ -22,7 +27,7 @@ export default async function EmployeeDetailPage({ params }: { params: { id: str
   return (
     <div>
       <Header />
-      <EmployeeDetail employee={data} />
+      <EmployeeDetail employee={data} role={role} />
     </div>
   );
 }

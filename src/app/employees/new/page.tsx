@@ -1,7 +1,14 @@
 import Header from "@/components/ui/Header";
 import EmployeeForm from "../EmployeeForm";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
-export default function NewEmployeePage() {
+export default async function NewEmployeePage() {
+  const session = await getServerSession(authOptions);
+  const role = (session?.user as { role?: string })?.role ?? "staff";
+  if (role !== "admin") redirect("/employees");
+
   return (
     <div>
       <Header />
