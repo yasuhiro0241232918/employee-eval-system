@@ -5,8 +5,8 @@ import Link from "next/link";
 
 const COMPANIES = ["鈴木総業", "ミヤツリサイクル", "ガレージファクトリー", "ENEOSキタカタSS"];
 const DEPARTMENTS = ["工事部", "砕石事業部", "営業部", "技術管理部", "総務部"];
-const POSITIONS = ["会長", "相談役", "顧問", "代表取締役社長", "取締役", "部長", "課長", "職長", "主任", "店長", "工場長"];
-const EMPLOYMENT_TYPES = ["正社員", "期間社員", "パート・アルバイト"];
+const POSITIONS = ["会長", "相談役", "顧問", "代表取締役社長", "取締役専務", "取締役", "部長", "課長", "職長", "主任", "店長", "工場長"];
+const EMPLOYMENT_TYPES = ["役員", "正社員", "期間社員", "パート・アルバイト"];
 const GRADES = ["1等級", "2等級", "3等級", "4等級", "5等級", "6等級", "7等級"];
 const GRADE_NUMBERS = Array.from({ length: 30 }, (_, i) => String(i + 1));
 const AIZU_MUNICIPALITIES = [
