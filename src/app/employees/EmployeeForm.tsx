@@ -151,7 +151,7 @@ export default function EmployeeForm({ employee }: Props) {
             </div>
           ))}
           <div className="col-span-2">
-            <label className="block text-xs font-semibold text-slate-600 mb-1">市町村（会津管内）</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">住所（市町村）</label>
             <select name="address" defaultValue={employee?.address ?? ""}
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white">
               <option value="">選択してください</option>

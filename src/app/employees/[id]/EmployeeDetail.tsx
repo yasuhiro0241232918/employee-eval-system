@@ -166,7 +166,7 @@ export default function EmployeeDetail({ employee, role }: { employee: Employee;
                 ["入社日", emp.joinDate ? `${fmt(emp.joinDate)}（${calcTenure(emp.joinDate)}）` : "—"],
                 ["部署", emp.department ?? "—"],
                 ["役職", emp.position ?? "—"],
-                ["市町村", emp.address ?? "—"],
+                ["住所（市町村）", emp.address ?? "—"],
                 ["等級", emp.grade ?? "—"],
                 ["号数", emp.gradeNumber ?? "—"],
               ].map(([label, value]) => (
