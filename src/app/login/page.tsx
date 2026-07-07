@@ -31,7 +31,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100">
       <div className="bg-white rounded-2xl shadow-lg p-10 w-full max-w-sm">
-        <h1 className="text-xl font-bold text-center text-slate-800 mb-2">社員評価管理システム</h1>
+        <h1 className="text-xl font-bold text-center text-slate-800 mb-2">従業員データベース</h1>
         <p className="text-sm text-slate-500 text-center mb-8">管理者・人事担当者専用</p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

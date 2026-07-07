@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "社員評価管理システム",
-  description: "社員評価管理システム",
+  title: "従業員データベース",
+  description: "従業員データベース",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
