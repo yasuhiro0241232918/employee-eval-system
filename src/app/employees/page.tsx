@@ -36,10 +36,16 @@ export default async function EmployeesPage({
     },
   });
 
+  const allEmployeesSorted = await prisma.employee.findMany({
+    where: { deletedAt: null },
+    select: { id: true, name: true },
+  });
+  allEmployeesSorted.sort((a, b) => a.name.localeCompare(b.name, "ja"));
+
   return (
     <div>
       <Header />
-      <main className="max-w-6xl mx-auto px-6 py-6">
+      <main className="max-w-7xl mx-auto px-6 py-6">
         <div className="flex items-center gap-3 mb-6">
           <SearchEmployees defaultValue={q} />
           {role === "admin" && (
@@ -62,38 +68,61 @@ export default async function EmployeesPage({
           )}
         </div>
 
-        {employees.length === 0 ? (
-          <div className="text-center py-20 text-slate-400">
-            <svg className="mx-auto mb-3 opacity-30" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <p>社員が登録されていません</p>
+        <div className="flex gap-5">
+          {/* 社員カード */}
+          <div className="flex-1 min-w-0">
+            {employees.length === 0 ? (
+              <div className="text-center py-20 text-slate-400">
+                <svg className="mx-auto mb-3 opacity-30" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <p>社員が登録されていません</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {employees.map((emp) => (
+                  <Link
+                    key={emp.id}
+                    href={`/employees/${emp.id}`}
+                    className="bg-white rounded-xl p-5 text-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all border-2 border-transparent hover:border-blue-100"
+                  >
+                    {emp.photo ? (
+                      <img src={emp.photo} alt="" className="w-20 h-20 rounded-full object-cover mx-auto mb-3 border-2 border-blue-100" />
+                    ) : (
+                      <div className="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-3 border-2 border-blue-100">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                      </div>
+                    )}
+                    <p className="font-bold text-sm text-slate-800 mb-0.5">{emp.name}</p>
+                    <p className="text-xs text-slate-500 mb-0.5">{emp.department ?? ""}</p>
+                    <p className="text-xs text-slate-400">{emp.position ?? ""}</p>
+                    {emp.joinDate && (
+                      <span className="inline-block mt-2 text-xs bg-blue-50 text-blue-600 rounded-full px-2 py-0.5">
+                        {calcTenure(emp.joinDate)}
+                      </span>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {employees.map((emp) => (
-              <Link
-                key={emp.id}
-                href={`/employees/${emp.id}`}
-                className="bg-white rounded-xl p-5 text-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all border-2 border-transparent hover:border-blue-100"
-              >
-                {emp.photo ? (
-                  <img src={emp.photo} alt="" className="w-20 h-20 rounded-full object-cover mx-auto mb-3 border-2 border-blue-100" />
-                ) : (
-                  <div className="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-3 border-2 border-blue-100">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                  </div>
-                )}
-                <p className="font-bold text-sm text-slate-800 mb-0.5">{emp.name}</p>
-                <p className="text-xs text-slate-500 mb-0.5">{emp.department ?? ""}</p>
-                <p className="text-xs text-slate-400">{emp.position ?? ""}</p>
-                {emp.joinDate && (
-                  <span className="inline-block mt-2 text-xs bg-blue-50 text-blue-600 rounded-full px-2 py-0.5">
-                    {calcTenure(emp.joinDate)}
-                  </span>
-                )}
-              </Link>
-            ))}
+
+          {/* あいうえお順サイドバー */}
+          <div className="w-36 shrink-0">
+            <div className="bg-white rounded-xl shadow-sm p-3 sticky top-6">
+              <p className="text-xs font-semibold text-slate-500 mb-2 text-center">あいうえお順</p>
+              <div className="flex flex-col gap-0.5 max-h-[75vh] overflow-y-auto">
+                {allEmployeesSorted.map((emp) => (
+                  <Link
+                    key={emp.id}
+                    href={`/employees/${emp.id}`}
+                    className="text-xs text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded px-2 py-1 transition truncate"
+                  >
+                    {emp.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
           </div>
-        )}
+        </div>
       </main>
     </div>
   );
