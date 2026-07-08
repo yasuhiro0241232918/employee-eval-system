@@ -106,7 +106,7 @@ export default async function EmployeesPage({
           </div>
 
           {/* あいうえお順サイドバー */}
-          <div className="w-36 shrink-0">
+          <div className="w-48 shrink-0">
             <div className="bg-white rounded-xl shadow-sm p-3 sticky top-6">
               <p className="text-xs font-semibold text-slate-500 mb-2 text-center">あいうえお順</p>
               <div className="flex flex-col gap-0.5 max-h-[75vh] overflow-y-auto">
@@ -114,7 +114,7 @@ export default async function EmployeesPage({
                   <Link
                     key={emp.id}
                     href={`/employees/${emp.id}`}
-                    className="text-xs text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded px-2 py-1 transition truncate"
+                    className="text-sm text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded px-2 py-1.5 transition"
                   >
                     {emp.name}
                   </Link>
