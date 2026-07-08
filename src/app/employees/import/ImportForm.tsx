@@ -83,7 +83,7 @@ export default function ImportForm() {
               <tr key={i} className="border-b border-slate-50">
                 <td className="py-2 pr-4">{r.name}</td>
                 <td className="py-2">
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${r.status === "登録済" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${r.status === "新規登録" || r.status === "更新済" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
                     {r.status}
                   </span>
                 </td>
