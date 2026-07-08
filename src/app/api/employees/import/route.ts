@@ -48,6 +48,16 @@ export async function POST(req: NextRequest) {
 
     const results: { name: string; status: string }[] = [];
 
+    // 自動採番用: 既存の最大番号を取得してカウンター開始
+    const existingNos = await prisma.employee.findMany({
+      where: { employeeNo: { not: null } },
+      select: { employeeNo: true },
+    });
+    let noCounter = existingNos.reduce((acc, e) => {
+      const n = parseInt(e.employeeNo ?? "0", 10);
+      return isNaN(n) ? acc : Math.max(acc, n);
+    }, 0);
+
     for (const row of rows) {
       const name = str(row["氏名"]);
       if (!name) continue;
@@ -90,8 +100,10 @@ export async function POST(req: NextRequest) {
           await prisma.employee.update({ where: { employeeNo }, data: updateData });
           results.push({ name, status: "更新済" });
         } else {
-          // 社員No.なし → 新規作成
-          await prisma.employee.create({ data });
+          // 社員No.なし → 自動採番して新規作成
+          noCounter += 1;
+          const autoNo = String(noCounter).padStart(3, "0");
+          await prisma.employee.create({ data: { ...data, employeeNo: autoNo } });
           results.push({ name, status: "新規登録" });
         }
       } catch {

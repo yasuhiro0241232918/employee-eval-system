@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { generateEmployeeNo } from "@/lib/generateEmployeeNo";
 
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q") ?? "";
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
       joinDate: body.joinDate ? new Date(body.joinDate) : null,
       department: body.department ?? null,
       position: body.position ?? null,
-      employeeNo: body.employeeNo ?? null,
+      employeeNo: body.employeeNo || await generateEmployeeNo(),
       grade: body.grade ?? null,
       gradeNumber: body.gradeNumber ?? null,
       company: body.company ?? null,
