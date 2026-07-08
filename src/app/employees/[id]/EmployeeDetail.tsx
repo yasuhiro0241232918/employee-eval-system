@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -7,7 +7,6 @@ type Employee = {
   id: string; employeeNo: string | null; name: string; birthDate: string | null; joinDate: string | null;
   department: string | null; position: string | null; grade: string | null;
   gradeNumber: string | null; company: string | null; address: string | null; employmentType: string | null; photo: string | null;
-  attendance: { id: string; year: number; month: number; workDays: number; paidLeave: number }[];
   qualifications: { id: string; name: string; date: string | null; note: string | null }[];
   experiences: { id: string; content: string; period: string | null; note: string | null }[];
   accidents: { id: string; date: string | null; content: string; punishment: string | null }[];
@@ -46,7 +45,6 @@ export default function EmployeeDetail({ employee, role }: { employee: Employee;
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
   const [modal, setModal] = useState<{ type: string; data?: Record<string, string> } | null>(null);
-  const [confirmId, setConfirmId] = useState<{ action: () => Promise<void> } | null>(null);
 
   async function reload() {
     const res = await fetch(`/api/employees/${emp.id}`);
@@ -95,21 +93,6 @@ export default function EmployeeDetail({ employee, role }: { employee: Employee;
 
   const scoreBg = (s: number) => s >= 80 ? "bg-green-100 text-green-700" : s >= 60 ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700";
   const today = new Date().toISOString().slice(0, 10);
-
-  // 年度計算（4月始まり）
-  function getFiscalYear(year: number, month: number) { return month >= 4 ? year : year - 1; }
-  const now = new Date();
-  const currentFiscalYear = getFiscalYear(now.getFullYear(), now.getMonth() + 1);
-  const [selectedFY, setSelectedFY] = useState(currentFiscalYear);
-
-  // 存在する年度一覧
-  const fiscalYears = Array.from(new Set(emp.attendance.map(a => getFiscalYear(a.year, a.month)))).sort((a, b) => b - a);
-  if (!fiscalYears.includes(currentFiscalYear)) fiscalYears.unshift(currentFiscalYear);
-
-  // 選択年度の勤怠データ（4月〜翌3月）
-  const fyAtt = emp.attendance.filter(a => getFiscalYear(a.year, a.month) === selectedFY);
-  const totalWork = fyAtt.reduce((s, a) => s + a.workDays, 0);
-  const totalLeave = fyAtt.reduce((s, a) => s + a.paidLeave, 0);
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-6">
@@ -180,39 +163,7 @@ export default function EmployeeDetail({ employee, role }: { employee: Employee;
           )}
 
           {/* 勤怠情報 */}
-          {tab === 1 && (
-            <div>
-              {/* 年度セレクター */}
-              <div className="flex items-center gap-3 mb-4">
-                <label className="text-xs font-semibold text-slate-500">年度</label>
-                <select value={selectedFY} onChange={e => setSelectedFY(Number(e.target.value))}
-                  className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-white outline-none focus:border-blue-400">
-                  {fiscalYears.map(fy => (
-                    <option key={fy} value={fy}>{fy}年度（{fy}/4〜{fy+1}/3）</option>
-                  ))}
-                </select>
-              </div>
-              {/* サマリー */}
-              <div className="flex gap-6 bg-blue-50 rounded-xl p-4 mb-5">
-                <div className="text-center"><p className="text-2xl font-bold text-blue-700">{totalWork}</p><p className="text-xs text-slate-500 mt-0.5">{selectedFY}年度 出勤日数</p></div>
-                <div className="text-center"><p className="text-2xl font-bold text-blue-700">{totalLeave}</p><p className="text-xs text-slate-500 mt-0.5">{selectedFY}年度 有給取得</p></div>
-              </div>
-              <AttForm onAdd={async (y, m, w, l) => addRecord("attendance", { year: y, month: m, workDays: w, paidLeave: l })} />
-              {fyAtt.length > 0 && (
-                <table className="w-full text-sm mt-4">
-                  <thead><tr className="border-b border-slate-100 text-xs text-slate-500 text-left">{["年","月","出勤日数","有給取得",""].map(h=><th key={h} className="pb-2 pr-4">{h}</th>)}</tr></thead>
-                  <tbody>{fyAtt.sort((a,b) => a.year !== b.year ? a.year - b.year : a.month - b.month).map(a=>(
-                    <tr key={`${a.year}-${a.month}`} className="border-b border-slate-50 hover:bg-slate-50">
-                      <td className="py-2 pr-4">{a.year}</td><td className="py-2 pr-4">{a.month}月</td>
-                      <td className="py-2 pr-4">{a.workDays}日</td><td className="py-2 pr-4">{a.paidLeave}日</td>
-                      <td className="py-2"><button onClick={()=>deleteRecord("attendance",{year:a.year,month:a.month})} className="text-red-400 hover:text-red-600"><TrashIcon/></button></td>
-                    </tr>
-                  ))}</tbody>
-                </table>
-              )}
-              {fyAtt.length === 0 && <p className="text-sm text-slate-400 mt-4">この年度のデータがありません</p>}
-            </div>
-          )}
+          {tab === 1 && <AttendanceTab employeeId={emp.id} />}
 
           {/* 資格・経験 */}
           {tab === 2 && (
@@ -354,6 +305,151 @@ export default function EmployeeDetail({ employee, role }: { employee: Employee;
   );
 }
 
+const DOW = ["日", "月", "火", "水", "木", "金", "土"];
+
+function AttendanceTab({ employeeId }: { employeeId: string }) {
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [records, setRecords] = useState<{ date: string; status: string }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/employees/${employeeId}/attendance?year=${year}&month=${month}`)
+      .then(r => r.json())
+      .then((data: { date: string; status: string }[]) => { setRecords(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [employeeId, year, month]);
+
+  const daysInMonth = new Date(year, month, 0).getDate();
+
+  function getStatus(day: number): string | null {
+    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    return records.find(r => r.date.startsWith(dateStr))?.status ?? null;
+  }
+
+  async function toggleStatus(day: number, status: string) {
+    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const current = getStatus(day);
+    setSaving(dateStr);
+
+    if (current === status) {
+      // 同じをクリック → 解除
+      setRecords(prev => prev.filter(r => !r.date.startsWith(dateStr)));
+      await fetch(`/api/employees/${employeeId}/attendance`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: dateStr }),
+      });
+    } else {
+      // 別のステータスに切り替え
+      setRecords(prev => [...prev.filter(r => !r.date.startsWith(dateStr)), { date: dateStr, status }]);
+      await fetch(`/api/employees/${employeeId}/attendance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: dateStr, status }),
+      });
+    }
+    setSaving(null);
+  }
+
+  const prevMonth = () => { if (month === 1) { setYear(y => y - 1); setMonth(12); } else setMonth(m => m - 1); };
+  const nextMonth = () => { if (month === 12) { setYear(y => y + 1); setMonth(1); } else setMonth(m => m + 1); };
+
+  const totalWork = records.filter(r => r.status === "出勤").length;
+  const totalAbsent = records.filter(r => r.status === "欠勤").length;
+  const totalPaid = records.filter(r => r.status === "有給").length;
+
+  return (
+    <div>
+      {/* 月ナビゲーター */}
+      <div className="flex items-center gap-3 mb-4">
+        <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span className="text-base font-bold text-slate-800 min-w-[120px] text-center">{year}年 {month}月</span>
+        <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+
+      {/* 月合計 */}
+      <div className="flex gap-4 bg-slate-50 rounded-xl p-4 mb-5">
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-green-500 inline-block"></span>
+          <span className="text-sm text-slate-600">出勤</span>
+          <span className="text-xl font-bold text-green-600">{totalWork}</span>
+          <span className="text-xs text-slate-500">日</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-red-400 inline-block"></span>
+          <span className="text-sm text-slate-600">欠勤</span>
+          <span className="text-xl font-bold text-red-500">{totalAbsent}</span>
+          <span className="text-xs text-slate-500">日</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-yellow-400 inline-block"></span>
+          <span className="text-sm text-slate-600">有給</span>
+          <span className="text-xl font-bold text-yellow-600">{totalPaid}</span>
+          <span className="text-xs text-slate-500">日</span>
+        </div>
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-slate-400">読み込み中...</p>
+      ) : (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 text-xs text-slate-500">
+              <th className="pb-2 text-left font-semibold w-10">日</th>
+              <th className="pb-2 text-left font-semibold w-8">曜</th>
+              <th className="pb-2 text-center font-semibold">出勤</th>
+              <th className="pb-2 text-center font-semibold">欠勤</th>
+              <th className="pb-2 text-center font-semibold">有給</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+              const dow = new Date(year, month - 1, day).getDay();
+              const status = getStatus(day);
+              const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+              const isSun = dow === 0;
+              const isSat = dow === 6;
+              const isSaving = saving === dateStr;
+              return (
+                <tr key={day} className={`border-b border-slate-50 hover:bg-slate-50 ${isSun ? "text-red-500" : isSat ? "text-blue-500" : "text-slate-700"}`}>
+                  <td className="py-2 font-medium">{day}</td>
+                  <td className="py-2 text-xs">{DOW[dow]}</td>
+                  {(["出勤", "欠勤", "有給"] as const).map(s => {
+                    const isChecked = status === s;
+                    const color = s === "出勤" ? "text-green-600 border-green-400 bg-green-50" : s === "欠勤" ? "text-red-500 border-red-400 bg-red-50" : "text-yellow-600 border-yellow-400 bg-yellow-50";
+                    return (
+                      <td key={s} className="py-2 text-center">
+                        <button
+                          onClick={() => !isSaving && toggleStatus(day, s)}
+                          disabled={isSaving}
+                          className={`w-7 h-7 rounded border-2 transition flex items-center justify-center mx-auto ${isChecked ? color : "border-slate-200 bg-white"} ${isSaving ? "opacity-50" : "hover:border-slate-400 cursor-pointer"}`}
+                          title={s}
+                        >
+                          {isChecked && (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                          )}
+                        </button>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 function SectionHead({ title, onAdd }: { title: string; onAdd: () => void }) {
   return (
     <div className="flex items-center justify-between mb-3">
@@ -368,27 +464,6 @@ function SectionHead({ title, onAdd }: { title: string; onAdd: () => void }) {
 
 function TrashIcon() {
   return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>;
-}
-
-function AttForm({ onAdd }: { onAdd: (y: number, m: number, w: number, l: number) => void }) {
-  const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
-  const [work, setWork] = useState(0);
-  const [leave, setLeave] = useState(0);
-  return (
-    <div className="grid grid-cols-4 gap-3 mb-4">
-      {[["年",year,(v:number)=>setYear(v)],["月",month,(v:number)=>setMonth(v)],["出勤日数",work,(v:number)=>setWork(v)],["有給",leave,(v:number)=>setLeave(v)]].map(([label,val,set])=>(
-        <div key={label as string}>
-          <label className="text-xs text-slate-500 mb-1 block">{label as string}</label>
-          <input type="number" value={val as number} onChange={e=>(set as (v:number)=>void)(Number(e.target.value))} className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-blue-400" />
-        </div>
-      ))}
-      <div className="col-span-4">
-        <button onClick={() => onAdd(year, month, work, leave)} className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium px-4 py-1.5 rounded-lg">追加・更新</button>
-      </div>
-    </div>
-  );
 }
 
 type FieldDef = { name: string; label: string; type?: string; required?: boolean; textarea?: boolean; rows?: number; placeholder?: string; defaultValue?: string };

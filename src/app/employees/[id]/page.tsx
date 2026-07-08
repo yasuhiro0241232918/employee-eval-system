@@ -12,7 +12,6 @@ export default async function EmployeeDetailPage({ params }: { params: { id: str
   const emp = await prisma.employee.findUnique({
     where: { id: params.id },
     include: {
-      attendance: { orderBy: [{ year: "desc" }, { month: "desc" }] },
       qualifications: { orderBy: { createdAt: "asc" } },
       experiences: { orderBy: { createdAt: "asc" } },
       accidents: { orderBy: { date: "desc" } },

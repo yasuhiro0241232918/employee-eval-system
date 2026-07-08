@@ -5,7 +5,6 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   const emp = await prisma.employee.findUnique({
     where: { id: params.id },
     include: {
-      attendance: { orderBy: [{ year: "desc" }, { month: "desc" }] },
       qualifications: { orderBy: { createdAt: "asc" } },
       experiences: { orderBy: { createdAt: "asc" } },
       accidents: { orderBy: { date: "desc" } },
