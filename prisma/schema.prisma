@@ -48,13 +48,35 @@ model Employee {
 }
 
 model Attendance {
-  id         String   @id @default(uuid())
-  employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  date       DateTime @db.Date
-  status     String   // "出勤" | "欠勤" | "有給"
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                      String   @id @default(uuid())
+  employeeId              String
+  employee                Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date                    DateTime @db.Date
+
+  worked                  Boolean  @default(false)
+  absent                  Boolean  @default(false)
+  paidLeave               Boolean  @default(false)
+  statutoryHoliday        Boolean  @default(false)
+  nonStatutoryHoliday     Boolean  @default(false)
+
+  overtimeNormal          Float    @default(0)
+  overtimePremium         Float    @default(0)
+
+  statHolOvertimeNormal   Float    @default(0)
+  statHolOvertimePremium  Float    @default(0)
+
+  nonStatHolOvertimeNormal   Float @default(0)
+  nonStatHolOvertimePremium  Float @default(0)
+
+  distanceHours           Float    @default(0)
+
+  tardy                   Boolean  @default(false)
+  earlyLeave              Boolean  @default(false)
+  tardyTime               String?
+  earlyLeaveTime          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([employeeId, date])
   @@index([employeeId])

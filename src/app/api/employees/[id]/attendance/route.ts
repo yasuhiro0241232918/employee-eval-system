@@ -14,21 +14,30 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 }
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const { date, status } = await req.json();
-  const d = new Date(date);
+  const { date, ...fields } = await req.json() as Record<string, unknown>;
+  const d = new Date(date as string);
+  const data = {
+    worked:                 Boolean(fields.worked),
+    absent:                 Boolean(fields.absent),
+    paidLeave:              Boolean(fields.paidLeave),
+    statutoryHoliday:       Boolean(fields.statutoryHoliday),
+    nonStatutoryHoliday:    Boolean(fields.nonStatutoryHoliday),
+    overtimeNormal:         Number(fields.overtimeNormal) || 0,
+    overtimePremium:        Number(fields.overtimePremium) || 0,
+    statHolOvertimeNormal:  Number(fields.statHolOvertimeNormal) || 0,
+    statHolOvertimePremium: Number(fields.statHolOvertimePremium) || 0,
+    nonStatHolOvertimeNormal:  Number(fields.nonStatHolOvertimeNormal) || 0,
+    nonStatHolOvertimePremium: Number(fields.nonStatHolOvertimePremium) || 0,
+    distanceHours:          Number(fields.distanceHours) || 0,
+    tardy:                  Boolean(fields.tardy),
+    earlyLeave:             Boolean(fields.earlyLeave),
+    tardyTime:              fields.tardyTime ? String(fields.tardyTime) : null,
+    earlyLeaveTime:         fields.earlyLeaveTime ? String(fields.earlyLeaveTime) : null,
+  };
   const record = await prisma.attendance.upsert({
     where: { employeeId_date: { employeeId: params.id, date: d } },
-    create: { employeeId: params.id, date: d, status },
-    update: { status },
+    create: { employeeId: params.id, date: d, ...data },
+    update: data,
   });
   return NextResponse.json(record);
-}
-
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const { date } = await req.json();
-  const d = new Date(date);
-  await prisma.attendance.deleteMany({
-    where: { employeeId: params.id, date: d },
-  });
-  return NextResponse.json({ ok: true });
 }

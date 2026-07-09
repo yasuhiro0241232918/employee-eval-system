@@ -307,145 +307,249 @@ export default function EmployeeDetail({ employee, role }: { employee: Employee;
 
 const DOW = ["日", "月", "火", "水", "木", "金", "土"];
 
+type AttRec = {
+  date: string;
+  worked: boolean; absent: boolean; paidLeave: boolean;
+  statutoryHoliday: boolean; nonStatutoryHoliday: boolean;
+  tardy: boolean; earlyLeave: boolean;
+  tardyTime: string | null; earlyLeaveTime: string | null;
+  overtimeNormal: number; overtimePremium: number;
+  statHolOvertimeNormal: number; statHolOvertimePremium: number;
+  nonStatHolOvertimeNormal: number; nonStatHolOvertimePremium: number;
+  distanceHours: number;
+};
+
+function emptyRec(ds: string): AttRec {
+  return { date: ds, worked: false, absent: false, paidLeave: false, statutoryHoliday: false, nonStatutoryHoliday: false, tardy: false, earlyLeave: false, tardyTime: null, earlyLeaveTime: null, overtimeNormal: 0, overtimePremium: 0, statHolOvertimeNormal: 0, statHolOvertimePremium: 0, nonStatHolOvertimeNormal: 0, nonStatHolOvertimePremium: 0, distanceHours: 0 };
+}
+
+function timeToMin(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + (m || 0);
+}
+
+function calcWorkHours(rec: AttRec): number | null {
+  if (!rec.worked) return null;
+  const startMin = rec.tardy && rec.tardyTime ? timeToMin(rec.tardyTime) : 8 * 60;
+  const endMin = rec.earlyLeave && rec.earlyLeaveTime ? timeToMin(rec.earlyLeaveTime) : 17 * 60;
+  if (startMin >= endMin) return 0;
+  const breaks: [number, number][] = [[10*60, 10*60+15], [12*60, 13*60], [15*60, 15*60+15]];
+  const breakMin = breaks.reduce((sum, [bs, be]) => sum + Math.max(0, Math.min(endMin, be) - Math.max(startMin, bs)), 0);
+  return Math.max(0, (endMin - startMin - breakMin) / 60);
+}
+
+function CB({ checked, onClick, color = "green", disabled = false }: { checked: boolean; onClick: () => void; color?: string; disabled?: boolean }) {
+  const colors: Record<string, string> = { green: "bg-green-500 border-green-500", red: "bg-red-400 border-red-400", amber: "bg-amber-500 border-amber-500", blue: "bg-blue-500 border-blue-500", purple: "bg-purple-500 border-purple-500", orange: "bg-orange-500 border-orange-500" };
+  return (
+    <button onClick={disabled ? undefined : onClick} className={`w-5 h-5 rounded border-2 flex items-center justify-center mx-auto transition ${checked ? colors[color] : "border-slate-300 bg-white"} ${disabled ? "opacity-40 cursor-default" : "hover:border-slate-400 cursor-pointer"}`}>
+      {checked && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+    </button>
+  );
+}
+
+function NumInput({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled: boolean }) {
+  const [local, setLocal] = useState(value === 0 ? "" : String(value));
+  useEffect(() => { setLocal(value === 0 ? "" : String(value)); }, [value]);
+  return (
+    <input type="number" min="0" step="0.5" value={local} disabled={disabled}
+      onChange={e => setLocal(e.target.value)}
+      onBlur={() => { const v = parseFloat(local) || 0; onChange(v); setLocal(v === 0 ? "" : String(v)); }}
+      className="w-11 text-center text-xs border border-slate-200 rounded px-0.5 py-1 outline-none focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-300"
+    />
+  );
+}
+
 function AttendanceTab({ employeeId }: { employeeId: string }) {
   const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
-  const [records, setRecords] = useState<{ date: string; status: string }[]>([]);
+  const [records, setRecords] = useState<Map<string, AttRec>>(new Map());
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState<string | null>(null);
+  const [saving, setSaving] = useState<Set<string>>(new Set());
+  const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setLoading(true);
     fetch(`/api/employees/${employeeId}/attendance?year=${year}&month=${month}`)
       .then(r => r.json())
-      .then((data: { date: string; status: string }[]) => { setRecords(data); setLoading(false); })
+      .then((data: AttRec[]) => {
+        const map = new Map<string, AttRec>();
+        data.forEach(r => {
+          const d = new Date(r.date);
+          const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+          map.set(key, { ...r, date: key });
+        });
+        setRecords(map);
+        setLoading(false);
+        setUnlocked(new Set());
+      })
       .catch(() => setLoading(false));
   }, [employeeId, year, month]);
 
-  const daysInMonth = new Date(year, month, 0).getDate();
+  function ds(day: number) { return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`; }
+  function getRec(day: number) { return records.get(ds(day)) ?? emptyRec(ds(day)); }
+  function isLocked(day: number) { return ds(day) < todayStr && !unlocked.has(ds(day)); }
 
-  function getStatus(day: number): string | null {
-    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    return records.find(r => r.date.startsWith(dateStr))?.status ?? null;
+  async function saveDay(day: number, rec: AttRec) {
+    const d = ds(day);
+    setSaving(prev => new Set(prev).add(d));
+    setRecords(prev => new Map(prev).set(d, rec));
+    await fetch(`/api/employees/${employeeId}/attendance`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rec) });
+    setSaving(prev => { const n = new Set(prev); n.delete(d); return n; });
   }
 
-  async function toggleStatus(day: number, status: string) {
-    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    const current = getStatus(day);
-    setSaving(dateStr);
-
-    if (current === status) {
-      // 同じをクリック → 解除
-      setRecords(prev => prev.filter(r => !r.date.startsWith(dateStr)));
-      await fetch(`/api/employees/${employeeId}/attendance`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: dateStr }),
-      });
-    } else {
-      // 別のステータスに切り替え
-      setRecords(prev => [...prev.filter(r => !r.date.startsWith(dateStr)), { date: dateStr, status }]);
-      await fetch(`/api/employees/${employeeId}/attendance`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: dateStr, status }),
-      });
+  function toggleBool(day: number, field: keyof AttRec) {
+    if (isLocked(day)) return;
+    const rec = getRec(day);
+    const newVal = !(rec[field] as boolean);
+    const update: Partial<AttRec> = { [field]: newVal };
+    if (newVal && (field === "worked" || field === "absent" || field === "paidLeave")) {
+      if (field !== "worked") update.worked = false;
+      if (field !== "absent") update.absent = false;
+      if (field !== "paidLeave") update.paidLeave = false;
     }
-    setSaving(null);
+    if (!newVal && field === "tardy") update.tardyTime = null;
+    if (!newVal && field === "earlyLeave") update.earlyLeaveTime = null;
+    saveDay(day, { ...rec, ...update });
+  }
+  function updateNum(day: number, field: keyof AttRec, v: number) {
+    if (isLocked(day)) return;
+    saveDay(day, { ...getRec(day), [field]: v });
+  }
+  function updateTime(day: number, field: "tardyTime" | "earlyLeaveTime", v: string) {
+    if (isLocked(day)) return;
+    saveDay(day, { ...getRec(day), [field]: v || null });
   }
 
   const prevMonth = () => { if (month === 1) { setYear(y => y - 1); setMonth(12); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 12) { setYear(y => y + 1); setMonth(1); } else setMonth(m => m + 1); };
 
-  const totalWork = records.filter(r => r.status === "出勤").length;
-  const totalAbsent = records.filter(r => r.status === "欠勤").length;
-  const totalPaid = records.filter(r => r.status === "有給").length;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const allRecs = Array.from({ length: daysInMonth }, (_, i) => getRec(i + 1));
+  const tot = {
+    worked: allRecs.filter(r => r.worked).length,
+    absent: allRecs.filter(r => r.absent).length,
+    paidLeave: allRecs.filter(r => r.paidLeave).length,
+    statHol: allRecs.filter(r => r.statutoryHoliday).length,
+    nonStatHol: allRecs.filter(r => r.nonStatutoryHoliday).length,
+    otN: allRecs.reduce((s, r) => s + r.overtimeNormal, 0),
+    otP: allRecs.reduce((s, r) => s + r.overtimePremium, 0),
+    statN: allRecs.reduce((s, r) => s + r.statHolOvertimeNormal, 0),
+    statP: allRecs.reduce((s, r) => s + r.statHolOvertimePremium, 0),
+    nonN: allRecs.reduce((s, r) => s + r.nonStatHolOvertimeNormal, 0),
+    nonP: allRecs.reduce((s, r) => s + r.nonStatHolOvertimePremium, 0),
+    dist: allRecs.reduce((s, r) => s + r.distanceHours, 0),
+  };
 
   return (
     <div>
-      {/* 月ナビゲーター */}
       <div className="flex items-center gap-3 mb-4">
-        <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <span className="text-base font-bold text-slate-800 min-w-[120px] text-center">{year}年 {month}月</span>
-        <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
+        <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <span className="text-base font-bold text-slate-800 min-w-[110px] text-center">{year}年 {month}月</span>
+        <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
       </div>
 
-      {/* 月合計 */}
-      <div className="flex gap-4 bg-slate-50 rounded-xl p-4 mb-5">
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-green-500 inline-block"></span>
-          <span className="text-sm text-slate-600">出勤</span>
-          <span className="text-xl font-bold text-green-600">{totalWork}</span>
-          <span className="text-xs text-slate-500">日</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-red-400 inline-block"></span>
-          <span className="text-sm text-slate-600">欠勤</span>
-          <span className="text-xl font-bold text-red-500">{totalAbsent}</span>
-          <span className="text-xs text-slate-500">日</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-yellow-400 inline-block"></span>
-          <span className="text-sm text-slate-600">有給</span>
-          <span className="text-xl font-bold text-yellow-600">{totalPaid}</span>
-          <span className="text-xs text-slate-500">日</span>
-        </div>
+      <div className="grid grid-cols-4 gap-2 mb-5">
+        {([["労働日数", tot.worked, "text-green-600"], ["欠勤日数", tot.absent, "text-red-500"], ["有給日数", tot.paidLeave, "text-amber-600"], ["法定休出", tot.statHol, "text-blue-600"], ["法外休出", tot.nonStatHol, "text-purple-600"], ["普通残業h", tot.otN.toFixed(1), "text-slate-700"], ["割増残業h", tot.otP.toFixed(1), "text-slate-700"], ["遠距離h", tot.dist.toFixed(1), "text-teal-600"]] as [string, string|number, string][]).map(([label, val, cls]) => (
+          <div key={label} className="bg-slate-50 rounded-lg p-2 text-center">
+            <p className={`text-lg font-bold ${cls}`}>{val}</p>
+            <p className="text-xs text-slate-500 mt-0.5">{label}</p>
+          </div>
+        ))}
       </div>
 
-      {loading ? (
-        <p className="text-sm text-slate-400">読み込み中...</p>
-      ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 text-xs text-slate-500">
-              <th className="pb-2 text-left font-semibold w-10">日</th>
-              <th className="pb-2 text-left font-semibold w-8">曜</th>
-              <th className="pb-2 text-center font-semibold">出勤</th>
-              <th className="pb-2 text-center font-semibold">欠勤</th>
-              <th className="pb-2 text-center font-semibold">有給</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
-              const dow = new Date(year, month - 1, day).getDay();
-              const status = getStatus(day);
-              const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-              const isSun = dow === 0;
-              const isSat = dow === 6;
-              const isSaving = saving === dateStr;
-              return (
-                <tr key={day} className={`border-b border-slate-50 hover:bg-slate-50 ${isSun ? "text-red-500" : isSat ? "text-blue-500" : "text-slate-700"}`}>
-                  <td className="py-2 font-medium">{day}</td>
-                  <td className="py-2 text-xs">{DOW[dow]}</td>
-                  {(["出勤", "欠勤", "有給"] as const).map(s => {
-                    const isChecked = status === s;
-                    const color = s === "出勤" ? "text-green-600 border-green-400 bg-green-50" : s === "欠勤" ? "text-red-500 border-red-400 bg-red-50" : "text-yellow-600 border-yellow-400 bg-yellow-50";
-                    return (
-                      <td key={s} className="py-2 text-center">
-                        <button
-                          onClick={() => !isSaving && toggleStatus(day, s)}
-                          disabled={isSaving}
-                          className={`w-7 h-7 rounded border-2 transition flex items-center justify-center mx-auto ${isChecked ? color : "border-slate-200 bg-white"} ${isSaving ? "opacity-50" : "hover:border-slate-400 cursor-pointer"}`}
-                          title={s}
-                        >
-                          {isChecked && (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                          )}
-                        </button>
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      {loading ? <p className="text-sm text-slate-400">読み込み中...</p> : (
+        <div className="overflow-x-auto -mx-2 px-2">
+          <table className="text-xs border-collapse" style={{ minWidth: "780px" }}>
+            <thead>
+              <tr className="border-b-2 border-slate-200 text-center">
+                <th className="text-left pb-1.5 pr-2 text-slate-500 font-medium">日</th>
+                <th className="text-left pb-1.5 pr-2 text-slate-500 font-medium">曜</th>
+                <th className="pb-1.5 px-1 text-green-600 font-medium" title="出勤">出勤</th>
+                <th className="pb-1.5 px-1 text-red-500 font-medium" title="欠勤">欠勤</th>
+                <th className="pb-1.5 px-1 text-amber-600 font-medium" title="有給">有給</th>
+                <th className="pb-1.5 px-1 text-orange-500 font-medium leading-tight" title="遅刻（チェックで時刻入力）">遅刻</th>
+                <th className="pb-1.5 px-1 text-orange-500 font-medium leading-tight" title="早退（チェックで時刻入力）">早退</th>
+                <th className="pb-1.5 px-1 text-slate-600 font-medium leading-tight" title="実労働時間（自動計算）">実労<br/>時間</th>
+                <th className="pb-1.5 px-1 text-blue-600 font-medium leading-tight" title="法定休日出勤">法定<br/>休出</th>
+                <th className="pb-1.5 px-1 text-purple-600 font-medium leading-tight" title="法定外休日出勤">法外<br/>休出</th>
+                <th className="pb-1.5 px-1 text-slate-500 font-medium leading-tight" title="普通残業（時間）">普残<br/>h</th>
+                <th className="pb-1.5 px-1 text-slate-500 font-medium leading-tight" title="割増残業（時間）">割残<br/>h</th>
+                <th className="pb-1.5 px-1 text-blue-400 font-medium leading-tight" title="法定休日 普通残業">法定<br/>普残h</th>
+                <th className="pb-1.5 px-1 text-blue-400 font-medium leading-tight" title="法定休日 割増残業">法定<br/>割残h</th>
+                <th className="pb-1.5 px-1 text-purple-400 font-medium leading-tight" title="法定外休日 普通残業">法外<br/>普残h</th>
+                <th className="pb-1.5 px-1 text-purple-400 font-medium leading-tight" title="法定外休日 割増残業">法外<br/>割残h</th>
+                <th className="pb-1.5 px-1 text-teal-600 font-medium leading-tight" title="遠距離手当用時間">遠距<br/>h</th>
+                <th className="pb-1.5 px-1 w-6"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+                const dow = new Date(year, month - 1, day).getDay();
+                const rec = getRec(day);
+                const locked = isLocked(day);
+                const d = ds(day);
+                const isSun = dow === 0, isSat = dow === 6;
+                const workHours = calcWorkHours(rec);
+                return (
+                  <tr key={day} className={`border-b border-slate-100 transition ${locked ? "bg-slate-50" : saving.has(d) ? "bg-blue-50/30" : "hover:bg-slate-50"}`}>
+                    <td className={`py-1.5 pr-2 font-semibold ${isSun ? "text-red-500" : isSat ? "text-blue-500" : "text-slate-800"} ${locked ? "opacity-50" : ""}`}>{day}</td>
+                    <td className={`py-1.5 pr-2 ${isSun ? "text-red-400" : isSat ? "text-blue-400" : "text-slate-500"} ${locked ? "opacity-50" : ""}`}>{DOW[dow]}</td>
+                    <td className="py-1.5 px-1"><CB checked={rec.worked} onClick={() => toggleBool(day, "worked")} color="green" disabled={locked} /></td>
+                    <td className="py-1.5 px-1"><CB checked={rec.absent} onClick={() => toggleBool(day, "absent")} color="red" disabled={locked} /></td>
+                    <td className="py-1.5 px-1"><CB checked={rec.paidLeave} onClick={() => toggleBool(day, "paidLeave")} color="amber" disabled={locked} /></td>
+                    <td className="py-1 px-1">
+                      <div className="flex flex-col items-center gap-0.5">
+                        <CB checked={rec.tardy} onClick={() => toggleBool(day, "tardy")} color="orange" disabled={locked || !rec.worked} />
+                        {rec.tardy && (
+                          <input type="time" defaultValue={rec.tardyTime ?? ""} disabled={locked}
+                            onBlur={e => updateTime(day, "tardyTime", e.target.value)}
+                            className="w-16 text-center text-xs border border-orange-200 rounded px-0.5 py-0.5 outline-none focus:border-orange-400 disabled:bg-slate-50"
+                          />
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-1 px-1">
+                      <div className="flex flex-col items-center gap-0.5">
+                        <CB checked={rec.earlyLeave} onClick={() => toggleBool(day, "earlyLeave")} color="orange" disabled={locked || !rec.worked} />
+                        {rec.earlyLeave && (
+                          <input type="time" defaultValue={rec.earlyLeaveTime ?? ""} disabled={locked}
+                            onBlur={e => updateTime(day, "earlyLeaveTime", e.target.value)}
+                            className="w-16 text-center text-xs border border-orange-200 rounded px-0.5 py-0.5 outline-none focus:border-orange-400 disabled:bg-slate-50"
+                          />
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-1.5 px-1 text-center font-medium text-slate-700">
+                      {workHours !== null ? (
+                        <span className={workHours < 7.5 ? "text-orange-500" : "text-slate-700"}>{workHours.toFixed(1)}h</span>
+                      ) : <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="py-1.5 px-1"><CB checked={rec.statutoryHoliday} onClick={() => toggleBool(day, "statutoryHoliday")} color="blue" disabled={locked} /></td>
+                    <td className="py-1.5 px-1"><CB checked={rec.nonStatutoryHoliday} onClick={() => toggleBool(day, "nonStatutoryHoliday")} color="purple" disabled={locked} /></td>
+                    <td className="py-1.5 px-1"><NumInput value={rec.overtimeNormal} onChange={v => updateNum(day, "overtimeNormal", v)} disabled={locked} /></td>
+                    <td className="py-1.5 px-1"><NumInput value={rec.overtimePremium} onChange={v => updateNum(day, "overtimePremium", v)} disabled={locked} /></td>
+                    <td className="py-1.5 px-1"><NumInput value={rec.statHolOvertimeNormal} onChange={v => updateNum(day, "statHolOvertimeNormal", v)} disabled={locked} /></td>
+                    <td className="py-1.5 px-1"><NumInput value={rec.statHolOvertimePremium} onChange={v => updateNum(day, "statHolOvertimePremium", v)} disabled={locked} /></td>
+                    <td className="py-1.5 px-1"><NumInput value={rec.nonStatHolOvertimeNormal} onChange={v => updateNum(day, "nonStatHolOvertimeNormal", v)} disabled={locked} /></td>
+                    <td className="py-1.5 px-1"><NumInput value={rec.nonStatHolOvertimePremium} onChange={v => updateNum(day, "nonStatHolOvertimePremium", v)} disabled={locked} /></td>
+                    <td className="py-1.5 px-1"><NumInput value={rec.distanceHours} onChange={v => updateNum(day, "distanceHours", v)} disabled={locked} /></td>
+                    <td className="py-1.5 px-1 text-center">
+                      {d < todayStr && (
+                        locked
+                          ? <button onClick={() => setUnlocked(prev => { const n = new Set(prev); n.add(d); return n; })} title="ロック解除" className="text-slate-300 hover:text-amber-500 transition"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
+                          : <button onClick={() => setUnlocked(prev => { const n = new Set(prev); n.delete(d); return n; })} title="再ロック" className="text-amber-500 hover:text-slate-400 transition"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg></button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
+      <p className="text-xs text-slate-400 mt-3">過去の日付は自動ロック。南京錠アイコンをクリックして一時的に解除できます。</p>
     </div>
   );
 }
