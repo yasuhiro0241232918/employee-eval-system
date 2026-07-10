@@ -163,7 +163,7 @@ export default function EmployeeDetail({ employee, role }: { employee: Employee;
           )}
 
           {/* 勤怠情報 */}
-          {tab === 1 && <AttendanceTab employeeId={emp.id} />}
+          {tab === 1 && <AttendanceTab employeeId={emp.id} employeeName={emp.name} />}
 
           {/* 資格・経験 */}
           {tab === 2 && (
@@ -338,6 +338,27 @@ function calcWorkHours(rec: AttRec): number | null {
   return Math.max(0, (endMin - startMin - breakMin) / 60);
 }
 
+const TIME_OPTIONS: string[] = (() => {
+  const opts: string[] = [];
+  for (let h = 8; h <= 17; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      if (h === 17 && m > 0) break;
+      opts.push(`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`);
+    }
+  }
+  return opts;
+})();
+
+function TimeSelect({ value, onChange, disabled }: { value: string | null; onChange: (v: string) => void; disabled: boolean }) {
+  return (
+    <select value={value ?? ""} disabled={disabled} onChange={e => onChange(e.target.value)}
+      className="w-16 text-center text-xs border border-orange-200 rounded px-0.5 py-0.5 outline-none focus:border-orange-400 disabled:bg-slate-50 bg-white">
+      <option value="">--:--</option>
+      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+    </select>
+  );
+}
+
 function CB({ checked, onClick, color = "green", disabled = false }: { checked: boolean; onClick: () => void; color?: string; disabled?: boolean }) {
   const colors: Record<string, string> = { green: "bg-green-500 border-green-500", red: "bg-red-400 border-red-400", amber: "bg-amber-500 border-amber-500", blue: "bg-blue-500 border-blue-500", purple: "bg-purple-500 border-purple-500", orange: "bg-orange-500 border-orange-500" };
   return (
@@ -359,7 +380,7 @@ function NumInput({ value, onChange, disabled }: { value: number; onChange: (v: 
   );
 }
 
-function AttendanceTab({ employeeId }: { employeeId: string }) {
+function AttendanceTab({ employeeId, employeeName }: { employeeId: string; employeeName: string }) {
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const [year, setYear] = useState(now.getFullYear());
@@ -425,6 +446,102 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
   const prevMonth = () => { if (month === 1) { setYear(y => y - 1); setMonth(12); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 12) { setYear(y => y + 1); setMonth(1); } else setMonth(m => m + 1); };
 
+  function handlePrint() {
+    const days = new Date(year, month, 0).getDate();
+    const dowNames = ["日","月","火","水","木","金","土"];
+    const rows = Array.from({ length: days }, (_, i) => {
+      const day = i + 1;
+      const rec = getRec(day);
+      const dow = new Date(year, month - 1, day).getDay();
+      const wh = calcWorkHours(rec);
+      const dowColor = dow === 0 ? "#e53e3e" : dow === 6 ? "#3182ce" : "#2d3748";
+      const check = (v: boolean) => v ? "✓" : "";
+      return `<tr style="border-bottom:1px solid #e2e8f0">
+        <td style="padding:4px 6px;font-weight:600;color:${dowColor}">${day}</td>
+        <td style="padding:4px 6px;color:${dowColor}">${dowNames[dow]}</td>
+        <td style="padding:4px 6px;text-align:center">${check(rec.worked)}</td>
+        <td style="padding:4px 6px;text-align:center">${check(rec.absent)}</td>
+        <td style="padding:4px 6px;text-align:center">${check(rec.paidLeave)}</td>
+        <td style="padding:4px 6px;text-align:center">${rec.tardy ? (rec.tardyTime ?? "✓") : ""}</td>
+        <td style="padding:4px 6px;text-align:center">${rec.earlyLeave ? (rec.earlyLeaveTime ?? "✓") : ""}</td>
+        <td style="padding:4px 6px;text-align:center">${wh !== null ? wh.toFixed(1) : ""}</td>
+        <td style="padding:4px 6px;text-align:center">${check(rec.statutoryHoliday)}</td>
+        <td style="padding:4px 6px;text-align:center">${check(rec.nonStatutoryHoliday)}</td>
+        <td style="padding:4px 6px;text-align:center">${rec.overtimeNormal || ""}</td>
+        <td style="padding:4px 6px;text-align:center">${rec.overtimePremium || ""}</td>
+        <td style="padding:4px 6px;text-align:center">${rec.statHolOvertimeNormal || ""}</td>
+        <td style="padding:4px 6px;text-align:center">${rec.statHolOvertimePremium || ""}</td>
+        <td style="padding:4px 6px;text-align:center">${rec.nonStatHolOvertimeNormal || ""}</td>
+        <td style="padding:4px 6px;text-align:center">${rec.nonStatHolOvertimePremium || ""}</td>
+        <td style="padding:4px 6px;text-align:center">${rec.distanceHours || ""}</td>
+      </tr>`;
+    }).join("");
+
+    const allR = Array.from({ length: days }, (_, i) => getRec(i + 1));
+    const t = {
+      worked: allR.filter(r => r.worked).length,
+      absent: allR.filter(r => r.absent).length,
+      paidLeave: allR.filter(r => r.paidLeave).length,
+      tardy: allR.filter(r => r.tardy).length,
+      earlyLeave: allR.filter(r => r.earlyLeave).length,
+      statHol: allR.filter(r => r.statutoryHoliday).length,
+      nonStatHol: allR.filter(r => r.nonStatutoryHoliday).length,
+      otN: allR.reduce((s, r) => s + r.overtimeNormal, 0),
+      otP: allR.reduce((s, r) => s + r.overtimePremium, 0),
+      statN: allR.reduce((s, r) => s + r.statHolOvertimeNormal, 0),
+      statP: allR.reduce((s, r) => s + r.statHolOvertimePremium, 0),
+      nonN: allR.reduce((s, r) => s + r.nonStatHolOvertimeNormal, 0),
+      nonP: allR.reduce((s, r) => s + r.nonStatHolOvertimePremium, 0),
+      dist: allR.reduce((s, r) => s + r.distanceHours, 0),
+    };
+
+    const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
+<title>${employeeName} 勤怠表 ${year}年${month}月</title>
+<style>
+  body { font-family: "Hiragino Sans","Yu Gothic",sans-serif; font-size:11px; color:#2d3748; margin:20px; }
+  h1 { font-size:15px; margin:0 0 4px; }
+  .sub { color:#718096; font-size:11px; margin:0 0 12px; }
+  .totals { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:14px; }
+  .tot-box { border:1px solid #e2e8f0; border-radius:4px; padding:5px; text-align:center; }
+  .tot-val { font-size:14px; font-weight:700; }
+  .tot-lbl { font-size:9px; color:#718096; }
+  table { width:100%; border-collapse:collapse; font-size:10px; }
+  th { background:#f7fafc; padding:5px 6px; text-align:center; border-bottom:2px solid #cbd5e0; white-space:nowrap; }
+  @media print { body { margin:10px; } }
+</style></head><body>
+<h1>${employeeName}　勤怠表</h1>
+<p class="sub">${year}年 ${month}月　印刷日：${new Date().toLocaleDateString("ja-JP")}</p>
+<div class="totals">
+  <div class="tot-box"><div class="tot-val" style="color:#38a169">${t.worked}</div><div class="tot-lbl">労働日数</div></div>
+  <div class="tot-box"><div class="tot-val" style="color:#e53e3e">${t.absent}</div><div class="tot-lbl">欠勤日数</div></div>
+  <div class="tot-box"><div class="tot-val" style="color:#d69e2e">${t.paidLeave}</div><div class="tot-lbl">有給日数</div></div>
+  <div class="tot-box"><div class="tot-val" style="color:#dd6b20">${t.tardy}</div><div class="tot-lbl">遅刻回数</div></div>
+  <div class="tot-box"><div class="tot-val" style="color:#dd6b20">${t.earlyLeave}</div><div class="tot-lbl">早退回数</div></div>
+  <div class="tot-box"><div class="tot-val" style="color:#3182ce">${t.statHol}</div><div class="tot-lbl">法定休出</div></div>
+  <div class="tot-box"><div class="tot-val" style="color:#805ad5">${t.nonStatHol}</div><div class="tot-lbl">法外休出</div></div>
+  <div class="tot-box"><div class="tot-val">${t.otN.toFixed(1)}</div><div class="tot-lbl">普通残業h</div></div>
+  <div class="tot-box"><div class="tot-val">${t.otP.toFixed(1)}</div><div class="tot-lbl">割増残業h</div></div>
+  <div class="tot-box"><div class="tot-val">${t.statN.toFixed(1)}</div><div class="tot-lbl">法定普残h</div></div>
+  <div class="tot-box"><div class="tot-val">${t.statP.toFixed(1)}</div><div class="tot-lbl">法定割残h</div></div>
+  <div class="tot-box"><div class="tot-val">${t.nonN.toFixed(1)}</div><div class="tot-lbl">法外普残h</div></div>
+  <div class="tot-box"><div class="tot-val">${t.nonP.toFixed(1)}</div><div class="tot-lbl">法外割残h</div></div>
+  <div class="tot-box"><div class="tot-val" style="color:#2c7a7b">${t.dist.toFixed(1)}</div><div class="tot-lbl">遠距離h</div></div>
+</div>
+<table>
+<thead><tr>
+  <th>日</th><th>曜</th><th>出勤</th><th>欠勤</th><th>有給</th>
+  <th>遅刻時刻</th><th>早退時刻</th><th>実労h</th>
+  <th>法定休出</th><th>法外休出</th>
+  <th>普残h</th><th>割残h</th><th>法定普残h</th><th>法定割残h</th><th>法外普残h</th><th>法外割残h</th><th>遠距h</th>
+</tr></thead>
+<tbody>${rows}</tbody>
+</table>
+</body></html>`;
+
+    const win = window.open("", "_blank");
+    if (win) { win.document.write(html); win.document.close(); win.focus(); win.print(); }
+  }
+
   const daysInMonth = new Date(year, month, 0).getDate();
   const allRecs = Array.from({ length: daysInMonth }, (_, i) => getRec(i + 1));
   const tot = {
@@ -444,10 +561,18 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-4">
-        <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
-        <span className="text-base font-bold text-slate-800 min-w-[110px] text-center">{year}年 {month}月</span>
-        <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"16px" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
+          <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+          <span className="text-base font-bold text-slate-800" style={{ minWidth:"110px", textAlign:"center" }}>{year}年 {month}月</span>
+          <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+        </div>
+        <button onClick={handlePrint} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"6px 12px", borderRadius:"8px", background:"#334155", color:"white", fontSize:"12px", fontWeight:600, border:"none", cursor:"pointer" }}
+          onMouseEnter={e => (e.currentTarget.style.background="#1e293b")}
+          onMouseLeave={e => (e.currentTarget.style.background="#334155")}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          印刷
+        </button>
       </div>
 
       <div className="grid grid-cols-4 gap-2 mb-5">
@@ -503,10 +628,7 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
                       <div className="flex flex-col items-center gap-0.5">
                         <CB checked={rec.tardy} onClick={() => toggleBool(day, "tardy")} color="orange" disabled={locked || !rec.worked} />
                         {rec.tardy && (
-                          <input type="time" defaultValue={rec.tardyTime ?? ""} disabled={locked}
-                            onBlur={e => updateTime(day, "tardyTime", e.target.value)}
-                            className="w-16 text-center text-xs border border-orange-200 rounded px-0.5 py-0.5 outline-none focus:border-orange-400 disabled:bg-slate-50"
-                          />
+                          <TimeSelect value={rec.tardyTime} onChange={v => updateTime(day, "tardyTime", v)} disabled={locked} />
                         )}
                       </div>
                     </td>
@@ -514,10 +636,7 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
                       <div className="flex flex-col items-center gap-0.5">
                         <CB checked={rec.earlyLeave} onClick={() => toggleBool(day, "earlyLeave")} color="orange" disabled={locked || !rec.worked} />
                         {rec.earlyLeave && (
-                          <input type="time" defaultValue={rec.earlyLeaveTime ?? ""} disabled={locked}
-                            onBlur={e => updateTime(day, "earlyLeaveTime", e.target.value)}
-                            className="w-16 text-center text-xs border border-orange-200 rounded px-0.5 py-0.5 outline-none focus:border-orange-400 disabled:bg-slate-50"
-                          />
+                          <TimeSelect value={rec.earlyLeaveTime} onChange={v => updateTime(day, "earlyLeaveTime", v)} disabled={locked} />
                         )}
                       </div>
                     </td>

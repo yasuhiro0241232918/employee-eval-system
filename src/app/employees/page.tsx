@@ -36,11 +36,30 @@ export default async function EmployeesPage({
     },
   });
 
-  const allEmployeesSorted = await prisma.employee.findMany({
+  // グループ情報取得
+  const groups = await prisma.group.findMany({
+    orderBy: { order: "asc" },
+    include: {
+      members: {
+        orderBy: { order: "asc" },
+        include: { employee: { select: { id: true, name: true, deletedAt: true } } },
+      },
+    },
+  });
+
+  // グループ未所属の社員（あいうえお順）
+  const allEmployees = await prisma.employee.findMany({
     where: { deletedAt: null },
     select: { id: true, name: true },
   });
-  allEmployeesSorted.sort((a, b) => a.name.localeCompare(b.name, "ja"));
+  const groupedEmployeeIds = new Set(
+    groups.flatMap(g => g.members.filter(m => !m.employee.deletedAt).map(m => m.employeeId))
+  );
+  const ungrouped = allEmployees
+    .filter(e => !groupedEmployeeIds.has(e.id))
+    .sort((a, b) => a.name.localeCompare(b.name, "ja"));
+
+  const hasGroups = groups.length > 0;
 
   return (
     <div>
@@ -105,21 +124,73 @@ export default async function EmployeesPage({
             )}
           </div>
 
-          {/* あいうえお順サイドバー */}
+          {/* サイドバー */}
           <div className="w-48 shrink-0">
             <div className="bg-white rounded-xl shadow-sm p-3 sticky top-6">
-              <p className="text-xs font-semibold text-slate-500 mb-2 text-center">あいうえお順</p>
-              <div className="flex flex-col gap-0.5 max-h-[75vh] overflow-y-auto">
-                {allEmployeesSorted.map((emp) => (
-                  <Link
-                    key={emp.id}
-                    href={`/employees/${emp.id}`}
-                    className="text-sm text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded px-2 py-1.5 transition"
-                  >
-                    {emp.name}
-                  </Link>
-                ))}
-              </div>
+              {hasGroups ? (
+                <>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-slate-500">グループ</p>
+                    {role === "admin" && (
+                      <Link href="/settings" className="text-xs text-blue-500 hover:text-blue-700">設定</Link>
+                    )}
+                  </div>
+                  <div className="flex flex-col max-h-[75vh] overflow-y-auto">
+                    {groups.map(group => {
+                      const activeMembers = group.members.filter(m => !m.employee.deletedAt);
+                      if (activeMembers.length === 0) return null;
+                      return (
+                        <div key={group.id} className="mb-3">
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wide px-2 mb-1">{group.name}</p>
+                          {activeMembers.map(member => (
+                            <Link
+                              key={member.id}
+                              href={`/employees/${member.employeeId}`}
+                              className="block text-sm text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded px-2 py-1.5 transition"
+                            >
+                              {member.employee.name}
+                            </Link>
+                          ))}
+                        </div>
+                      );
+                    })}
+                    {ungrouped.length > 0 && (
+                      <div className="mb-1">
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wide px-2 mb-1">その他</p>
+                        {ungrouped.map(emp => (
+                          <Link
+                            key={emp.id}
+                            href={`/employees/${emp.id}`}
+                            className="block text-sm text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded px-2 py-1.5 transition"
+                          >
+                            {emp.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-slate-500">あいうえお順</p>
+                    {role === "admin" && (
+                      <Link href="/settings" className="text-xs text-blue-500 hover:text-blue-700">設定</Link>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-0.5 max-h-[75vh] overflow-y-auto">
+                    {ungrouped.map((emp) => (
+                      <Link
+                        key={emp.id}
+                        href={`/employees/${emp.id}`}
+                        className="text-sm text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded px-2 py-1.5 transition"
+                      >
+                        {emp.name}
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
