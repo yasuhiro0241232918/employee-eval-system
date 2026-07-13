@@ -17,6 +17,13 @@ model User {
   updatedAt    DateTime @updatedAt
 }
 
+model Setting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 model Group {
   id        String        @id @default(uuid())
   name      String
@@ -52,6 +59,7 @@ model Employee {
   address        String?
   employmentType String?
   photo       String?   @db.Text
+  paidLeaveGranted Int @default(0)
   deletedAt   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

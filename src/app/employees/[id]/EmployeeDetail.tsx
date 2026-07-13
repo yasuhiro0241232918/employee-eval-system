@@ -7,6 +7,7 @@ type Employee = {
   id: string; employeeNo: string | null; name: string; birthDate: string | null; joinDate: string | null;
   department: string | null; position: string | null; grade: string | null;
   gradeNumber: string | null; company: string | null; address: string | null; employmentType: string | null; photo: string | null;
+  paidLeaveGranted: number;
   qualifications: { id: string; name: string; date: string | null; note: string | null }[];
   experiences: { id: string; content: string; period: string | null; note: string | null }[];
   accidents: { id: string; date: string | null; content: string; punishment: string | null }[];
@@ -163,7 +164,7 @@ export default function EmployeeDetail({ employee, role }: { employee: Employee;
           )}
 
           {/* 勤怠情報 */}
-          {tab === 1 && <AttendanceTab employeeId={emp.id} employeeName={emp.name} />}
+          {tab === 1 && <AttendanceTab employeeId={emp.id} employeeName={emp.name} initialPaidLeaveGranted={emp.paidLeaveGranted ?? 0} />}
 
           {/* 資格・経験 */}
           {tab === 2 && (
@@ -368,11 +369,11 @@ function CB({ checked, onClick, color = "green", disabled = false }: { checked: 
   );
 }
 
-function NumInput({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled: boolean }) {
+function NumInput({ value, onChange, disabled, step = 0.5 }: { value: number; onChange: (v: number) => void; disabled: boolean; step?: number }) {
   const [local, setLocal] = useState(value === 0 ? "" : String(value));
   useEffect(() => { setLocal(value === 0 ? "" : String(value)); }, [value]);
   return (
-    <input type="number" min="0" step="0.5" value={local} disabled={disabled}
+    <input type="number" min="0" step={step} value={local} disabled={disabled}
       onChange={e => setLocal(e.target.value)}
       onBlur={() => { const v = parseFloat(local) || 0; onChange(v); setLocal(v === 0 ? "" : String(v)); }}
       className="w-11 text-center text-xs border border-slate-200 rounded px-0.5 py-1 outline-none focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-300"
@@ -380,7 +381,7 @@ function NumInput({ value, onChange, disabled }: { value: number; onChange: (v: 
   );
 }
 
-function AttendanceTab({ employeeId, employeeName }: { employeeId: string; employeeName: string }) {
+function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { employeeId: string; employeeName: string; initialPaidLeaveGranted: number }) {
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const [year, setYear] = useState(now.getFullYear());
@@ -389,6 +390,27 @@ function AttendanceTab({ employeeId, employeeName }: { employeeId: string; emplo
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
+  const [distanceRate, setDistanceRate] = useState(1913);
+  const [paidLeaveGranted, setPaidLeaveGranted] = useState(initialPaidLeaveGranted);
+  const [paidLeaveGrantedInput, setPaidLeaveGrantedInput] = useState(String(initialPaidLeaveGranted));
+  const [yearlyPaidLeaveUsed, setYearlyPaidLeaveUsed] = useState(0);
+
+  useEffect(() => {
+    fetch("/api/settings").then(r => r.json()).then(data => {
+      if (data.distanceAllowanceRate) setDistanceRate(Number(data.distanceAllowanceRate));
+    });
+  }, []);
+
+  useEffect(() => {
+    fetch(`/api/employees/${employeeId}/attendance?year=${year}`)
+      .then(r => r.json())
+      .then(data => { if (data.paidLeaveTotal !== undefined) setYearlyPaidLeaveUsed(data.paidLeaveTotal); });
+  }, [employeeId, year]);
+
+  async function savePaidLeaveGranted(val: number) {
+    setPaidLeaveGranted(val);
+    await fetch(`/api/employees/${employeeId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paidLeaveGranted: val }) });
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -575,8 +597,29 @@ function AttendanceTab({ employeeId, employeeName }: { employeeId: string; emplo
         </button>
       </div>
 
+      {/* 今年度付与日数 */}
+      <div className="flex items-center gap-3 mb-4 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+        <span className="text-sm text-slate-600 whitespace-nowrap">今年度付与日数</span>
+        <input
+          type="number" min="0" step="1"
+          value={paidLeaveGrantedInput}
+          onChange={e => setPaidLeaveGrantedInput(e.target.value)}
+          onBlur={() => { const v = parseInt(paidLeaveGrantedInput) || 0; savePaidLeaveGranted(v); setPaidLeaveGrantedInput(String(v)); }}
+          className="w-16 text-center border border-amber-200 rounded-lg px-2 py-1 text-sm outline-none focus:border-amber-400 bg-white"
+        />
+        <span className="text-sm text-slate-500">日</span>
+        <span className="mx-2 text-slate-300">|</span>
+        <span className="text-sm text-slate-500">当年取得</span>
+        <span className="text-sm font-bold text-amber-600">{yearlyPaidLeaveUsed}日</span>
+        <span className="mx-2 text-slate-300">|</span>
+        <span className="text-sm text-slate-500">残数</span>
+        <span className={`text-lg font-bold ${paidLeaveGranted - yearlyPaidLeaveUsed <= 0 ? "text-red-500" : "text-green-600"}`}>
+          {paidLeaveGranted - yearlyPaidLeaveUsed}日
+        </span>
+      </div>
+
       <div className="grid grid-cols-4 gap-2 mb-5">
-        {([["労働日数", tot.worked, "text-green-600"], ["欠勤日数", tot.absent, "text-red-500"], ["有給日数", tot.paidLeave, "text-amber-600"], ["法定休出", tot.statHol, "text-blue-600"], ["法外休出", tot.nonStatHol, "text-purple-600"], ["普通残業h", tot.otN.toFixed(1), "text-slate-700"], ["割増残業h", tot.otP.toFixed(1), "text-slate-700"], ["遠距離h", tot.dist.toFixed(1), "text-teal-600"]] as [string, string|number, string][]).map(([label, val, cls]) => (
+        {([["労働日数", tot.worked, "text-green-600"], ["欠勤日数", tot.absent, "text-red-500"], ["有給日数", tot.paidLeave, "text-amber-600"], ["有給残数", `${paidLeaveGranted - yearlyPaidLeaveUsed}日`, paidLeaveGranted - yearlyPaidLeaveUsed <= 0 ? "text-red-500" : "text-green-600"], ["法定休出", tot.statHol, "text-blue-600"], ["法外休出", tot.nonStatHol, "text-purple-600"], ["普通残業h", tot.otN.toFixed(1), "text-slate-700"], ["割増残業h", tot.otP.toFixed(1), "text-slate-700"], ["遠距離h", tot.dist.toFixed(2), "text-teal-600"], ["遠距離手当", `¥${Math.round(tot.dist * distanceRate).toLocaleString()}`, "text-teal-700"]] as [string, string|number, string][]).map(([label, val, cls]) => (
           <div key={label} className="bg-slate-50 rounded-lg p-2 text-center">
             <p className={`text-lg font-bold ${cls}`}>{val}</p>
             <p className="text-xs text-slate-500 mt-0.5">{label}</p>
@@ -606,6 +649,7 @@ function AttendanceTab({ employeeId, employeeName }: { employeeId: string; emplo
                 <th className="pb-1.5 px-1 text-purple-400 font-medium leading-tight" title="法定外休日 普通残業">法外<br/>普残h</th>
                 <th className="pb-1.5 px-1 text-purple-400 font-medium leading-tight" title="法定外休日 割増残業">法外<br/>割残h</th>
                 <th className="pb-1.5 px-1 text-teal-600 font-medium leading-tight" title="遠距離手当用時間">遠距<br/>h</th>
+                <th className="pb-1.5 px-1 text-teal-700 font-medium leading-tight" title="遠距離手当（自動計算）">遠距<br/>手当</th>
                 <th className="pb-1.5 px-1 w-6"></th>
               </tr>
             </thead>
@@ -653,7 +697,10 @@ function AttendanceTab({ employeeId, employeeName }: { employeeId: string; emplo
                     <td className="py-1.5 px-1"><NumInput value={rec.statHolOvertimePremium} onChange={v => updateNum(day, "statHolOvertimePremium", v)} disabled={locked} /></td>
                     <td className="py-1.5 px-1"><NumInput value={rec.nonStatHolOvertimeNormal} onChange={v => updateNum(day, "nonStatHolOvertimeNormal", v)} disabled={locked} /></td>
                     <td className="py-1.5 px-1"><NumInput value={rec.nonStatHolOvertimePremium} onChange={v => updateNum(day, "nonStatHolOvertimePremium", v)} disabled={locked} /></td>
-                    <td className="py-1.5 px-1"><NumInput value={rec.distanceHours} onChange={v => updateNum(day, "distanceHours", v)} disabled={locked} /></td>
+                    <td className="py-1.5 px-1"><NumInput value={rec.distanceHours} onChange={v => updateNum(day, "distanceHours", v)} disabled={locked} step={0.25} /></td>
+                    <td className="py-1.5 px-1 text-center text-xs font-medium text-teal-700">
+                      {rec.distanceHours > 0 ? `¥${Math.round(rec.distanceHours * distanceRate).toLocaleString()}` : <span className="text-slate-300">—</span>}
+                    </td>
                     <td className="py-1.5 px-1 text-center">
                       {d < todayStr && (
                         locked

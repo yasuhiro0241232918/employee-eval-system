@@ -34,6 +34,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       address: body.address ?? null,
       employmentType: body.employmentType ?? null,
       ...(body.photo !== undefined ? { photo: body.photo } : {}),
+      ...(body.paidLeaveGranted !== undefined ? { paidLeaveGranted: Number(body.paidLeaveGranted) } : {}),
     },
   });
   return NextResponse.json(emp);

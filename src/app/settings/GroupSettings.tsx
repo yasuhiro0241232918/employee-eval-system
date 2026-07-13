@@ -12,10 +12,21 @@ export default function GroupSettings({ allEmployees }: { allEmployees: Employee
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [addingTo, setAddingTo] = useState<string | null>(null);
+  const [distanceRate, setDistanceRate] = useState("1913");
+  const [rateSaved, setRateSaved] = useState(false);
 
   useEffect(() => {
     fetch("/api/groups").then(r => r.json()).then(data => { setGroups(data); setLoading(false); });
+    fetch("/api/settings").then(r => r.json()).then(data => {
+      if (data.distanceAllowanceRate) setDistanceRate(data.distanceAllowanceRate);
+    });
   }, []);
+
+  async function saveRate() {
+    await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ distanceAllowanceRate: distanceRate }) });
+    setRateSaved(true);
+    setTimeout(() => setRateSaved(false), 2000);
+  }
 
   async function createGroup() {
     if (!newGroupName.trim()) return;
@@ -78,6 +89,25 @@ export default function GroupSettings({ allEmployees }: { allEmployees: Employee
 
   return (
     <div className="max-w-xl">
+      {/* 手当設定 */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
+        <h2 className="text-sm font-bold text-slate-700 mb-3">手当設定</h2>
+        <div className="flex items-center gap-3">
+          <label className="text-sm text-slate-600 whitespace-nowrap">遠距離手当 単価（円/h）</label>
+          <input
+            type="number" min="0" step="1"
+            value={distanceRate}
+            onChange={e => setDistanceRate(e.target.value)}
+            className="w-28 border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-400 text-right"
+          />
+          <span className="text-sm text-slate-500">円 / 時間</span>
+          <button onClick={saveRate} className="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition">
+            {rateSaved ? "保存済 ✓" : "保存"}
+          </button>
+        </div>
+        <p className="text-xs text-slate-400 mt-2">計算式：遠距離手当用時間 × 単価 = 遠距離手当</p>
+      </div>
+
       {/* グループ追加 */}
       <div className="flex gap-2 mb-6">
         <input
