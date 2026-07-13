@@ -89,6 +89,20 @@ export default function GroupSettings({ allEmployees }: { allEmployees: Employee
 
   return (
     <div className="max-w-xl">
+      {/* データエクスポート */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
+        <h2 className="text-sm font-bold text-slate-700 mb-1">データバックアップ</h2>
+        <p className="text-xs text-slate-400 mb-3">全従業員の勤怠データをCSVファイルでダウンロードします。定期的に保存してください。</p>
+        <a
+          href="/api/export"
+          download
+          className="inline-flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg transition"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          CSVダウンロード
+        </a>
+      </div>
+
       {/* 手当設定 */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
         <h2 className="text-sm font-bold text-slate-700 mb-3">手当設定</h2>
