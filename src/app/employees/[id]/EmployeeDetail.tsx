@@ -402,11 +402,15 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
     });
   }, []);
 
-  useEffect(() => {
+  function refreshYearlyPaidLeave() {
     const fiscalYear = month >= 4 ? year : year - 1;
     fetch(`/api/employees/${employeeId}/attendance?fiscalYear=${fiscalYear}`)
       .then(r => r.json())
       .then(data => { if (data.paidLeaveTotal !== undefined) setYearlyPaidLeaveUsed(data.paidLeaveTotal); });
+  }
+
+  useEffect(() => {
+    refreshYearlyPaidLeave();
   }, [employeeId, year, month]);
 
   async function savePaidLeaveGranted(val: number) {
@@ -442,6 +446,7 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
     setRecords(prev => new Map(prev).set(d, rec));
     await fetch(`/api/employees/${employeeId}/attendance`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rec) });
     setSaving(prev => { const n = new Set(prev); n.delete(d); return n; });
+    refreshYearlyPaidLeave();
   }
 
   function toggleBool(day: number, field: keyof AttRec) {
