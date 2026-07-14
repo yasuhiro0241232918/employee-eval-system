@@ -75,9 +75,9 @@ export default function MonthlyExportButton() {
   <thead><tr>${HEADERS.map(h => `<th>${h}</th>`).join("")}</tr></thead>
   <tbody>${rows}</tbody>
 </table>
+<script>window.onload = function(){ window.print(); }</script>
 </body></html>`);
     win.document.close();
-    win.print();
   }
 
   async function handleCsv() {
