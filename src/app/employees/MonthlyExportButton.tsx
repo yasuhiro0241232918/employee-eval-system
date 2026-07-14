@@ -43,7 +43,12 @@ export default function MonthlyExportButton() {
 
     const rows = data.groups.flatMap(g => [
       `<tr class="group-header"><td colspan="${HEADERS.length}">${g.groupName}</td></tr>`,
-      ...g.members.map(m => `<tr>${toRow(m).map((v, i) => `<td${i === 0 ? ' class="name"' : ''}>${v}</td>`).join("")}</tr>`),
+      ...g.members.map(m => `<tr>${toRow(m).map((v, i) => {
+        const isLast = i === toRow(m).length - 1;
+        const cls = i === 0 ? ' class="name"' : isLast ? ' class="money"' : '';
+        const display = isLast ? Number(v).toLocaleString() : v;
+        return `<td${cls}>${display}</td>`;
+      }).join("")}</tr>`),
     ]).join("");
 
     const win = window.open("", "_blank");
@@ -56,9 +61,11 @@ export default function MonthlyExportButton() {
   h1 { font-size: 13px; margin: 0 0 8px; }
   p.sub { font-size: 9px; color: #666; margin: 0 0 10px; }
   table { border-collapse: collapse; width: 100%; }
-  th { background: #334155; color: #fff; padding: 4px 5px; text-align: center; white-space: nowrap; font-size: 8px; }
+  thead { display: table-header-group; }
+  th { background: #1e293b; color: #fff; padding: 4px 5px; text-align: center; white-space: nowrap; font-size: 9px; font-weight: 700; letter-spacing: 0.02em; }
   td { padding: 3px 5px; border-bottom: 1px solid #e2e8f0; text-align: center; white-space: nowrap; }
   td.name { text-align: left; font-weight: 600; }
+  td.money { text-align: right; }
   tr.group-header td { background: #f1f5f9; text-align: left; font-weight: bold; font-size: 9px; padding: 5px 6px; color: #475569; border-top: 2px solid #94a3b8; }
   tr:nth-child(even):not(.group-header) td { background: #f8fafc; }
 </style></head><body>
