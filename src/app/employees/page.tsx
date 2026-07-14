@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import Header from "@/components/ui/Header";
 import SearchEmployees from "./SearchEmployees";
+import MonthlyExportButton from "./MonthlyExportButton";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -67,6 +68,7 @@ export default async function EmployeesPage({
       <main className="max-w-7xl mx-auto px-6 py-6">
         <div className="flex items-center gap-3 mb-6">
           <SearchEmployees defaultValue={q} />
+          <MonthlyExportButton />
           {role === "admin" && (
             <div className="flex gap-2">
               <Link
