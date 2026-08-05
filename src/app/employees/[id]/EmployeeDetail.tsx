@@ -96,7 +96,7 @@ export default function EmployeeDetail({ employee, role }: { employee: Employee;
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-6">
+    <main className="max-w-6xl mx-auto px-4 py-6">
       {/* Header card */}
       <div className="bg-white rounded-xl shadow-sm p-5 mb-4 flex items-center gap-4">
         <Link href="/employees" className="text-slate-400 hover:text-slate-600 mr-1">
@@ -394,7 +394,7 @@ function NumInput({ value, onChange, disabled, step = 0.5 }: { value: number; on
     <input type="number" min="0" step={step} value={local} disabled={disabled}
       onChange={e => setLocal(e.target.value)}
       onBlur={() => { const v = parseFloat(local) || 0; onChange(v); setLocal(v === 0 ? "" : String(v)); }}
-      className="w-11 text-center text-xs border border-slate-200 rounded px-0.5 py-1 outline-none focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-300"
+      className="w-9 text-center text-xs border border-slate-200 rounded px-0 py-1 outline-none focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-300"
     />
   );
 }
@@ -646,7 +646,7 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
 
       {loading ? <p className="text-sm text-slate-400">読み込み中...</p> : (
         <div className="overflow-auto -mx-2 px-2" style={{ maxHeight: "calc(100vh - 360px)" }}>
-          <table className="text-xs border-collapse" style={{ minWidth: "940px" }}>
+          <table className="text-xs border-collapse w-full">
             <thead className="sticky top-0 z-10 bg-white">
               <tr className="border-b-2 border-slate-200 text-center">
                 <th className="text-left pb-1.5 pr-2 text-slate-500 font-medium">日</th>
@@ -688,12 +688,12 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
                     <td className="py-1 px-1">
                       <input type="time" value={rec.startTime ?? ""}
                         onChange={e => onTimeChange(day, "startTime", e.target.value)}
-                        className="w-20 text-xs border border-slate-200 rounded px-1 py-0.5 outline-none focus:border-blue-400" />
+                        className="w-[72px] text-xs border border-slate-200 rounded px-0.5 py-0.5 outline-none focus:border-blue-400" />
                     </td>
                     <td className="py-1 px-1">
                       <input type="time" value={rec.endTime ?? ""}
                         onChange={e => onTimeChange(day, "endTime", e.target.value)}
-                        className="w-20 text-xs border border-slate-200 rounded px-1 py-0.5 outline-none focus:border-blue-400" />
+                        className="w-[72px] text-xs border border-slate-200 rounded px-0.5 py-0.5 outline-none focus:border-blue-400" />
                     </td>
                     <td className="py-1.5 px-1 text-center font-medium text-slate-700">
                       {workHours !== null ? (
