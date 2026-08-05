@@ -381,6 +381,35 @@ function NumInput({ value, onChange, disabled, step = 0.5 }: { value: number; on
   );
 }
 
+const MINUTE_OPTIONS = Array.from({ length: 12 }, (_, i) => i * 5);
+
+function DistanceInput({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled: boolean }) {
+  const totalMins = Math.round(value * 60);
+  const hrs = Math.floor(totalMins / 60);
+  const mins = Math.round((totalMins % 60) / 5) * 5 % 60;
+  return (
+    <div className="flex items-center gap-0.5 text-xs">
+      <input
+        type="number" min="0"
+        value={hrs === 0 && mins === 0 ? "" : hrs}
+        disabled={disabled}
+        onChange={e => onChange((parseInt(e.target.value) || 0) + mins / 60)}
+        className="w-8 text-center border border-slate-200 rounded px-0.5 py-1 outline-none focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-300"
+      />
+      <span className="text-slate-400">h</span>
+      <select
+        value={mins}
+        disabled={disabled}
+        onChange={e => onChange(hrs + parseInt(e.target.value) / 60)}
+        className="border border-slate-200 rounded px-0.5 py-1 outline-none focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-300 bg-white"
+      >
+        {MINUTE_OPTIONS.map(m => <option key={m} value={m}>{String(m).padStart(2, "0")}</option>)}
+      </select>
+      <span className="text-slate-400">m</span>
+    </div>
+  );
+}
+
 function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { employeeId: string; employeeName: string; initialPaidLeaveGranted: number }) {
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -716,7 +745,7 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
                     <td className="py-1.5 px-1"><NumInput value={rec.statHolOvertimePremium} onChange={v => updateNum(day, "statHolOvertimePremium", v)} disabled={locked} /></td>
                     <td className="py-1.5 px-1"><NumInput value={rec.nonStatHolOvertimeNormal} onChange={v => updateNum(day, "nonStatHolOvertimeNormal", v)} disabled={locked} /></td>
                     <td className="py-1.5 px-1"><NumInput value={rec.nonStatHolOvertimePremium} onChange={v => updateNum(day, "nonStatHolOvertimePremium", v)} disabled={locked} /></td>
-                    <td className="py-1.5 px-1"><NumInput value={rec.distanceHours} onChange={v => updateNum(day, "distanceHours", v)} disabled={locked} step={0.25} /></td>
+                    <td className="py-1.5 px-1"><DistanceInput value={rec.distanceHours} onChange={v => updateNum(day, "distanceHours", v)} disabled={locked} /></td>
                     <td className="py-1.5 px-1 text-center text-xs font-medium text-teal-700">
                       {rec.distanceHours > 0 ? `¥${Math.round(rec.distanceHours * distanceRate).toLocaleString()}` : <span className="text-slate-300">—</span>}
                     </td>
