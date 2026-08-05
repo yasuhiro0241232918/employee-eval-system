@@ -422,7 +422,6 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
   const [distanceRate, setDistanceRate] = useState(1913);
   const [paidLeaveGranted, setPaidLeaveGranted] = useState(initialPaidLeaveGranted);
   const [paidLeaveGrantedInput, setPaidLeaveGrantedInput] = useState(String(initialPaidLeaveGranted));
-  const [paidLeaveGrantedLocked, setPaidLeaveGrantedLocked] = useState(true);
   const [yearlyPaidLeaveUsed, setYearlyPaidLeaveUsed] = useState(0);
 
   useEffect(() => {
@@ -639,23 +638,10 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
         <input
           type="number" min="0" step="1"
           value={paidLeaveGrantedInput}
-          disabled={paidLeaveGrantedLocked}
           onChange={e => setPaidLeaveGrantedInput(e.target.value)}
-          onBlur={() => { const v = parseInt(paidLeaveGrantedInput) || 0; savePaidLeaveGranted(v); setPaidLeaveGrantedInput(String(v)); setPaidLeaveGrantedLocked(true); }}
-          className={`w-16 text-center border rounded-lg px-2 py-1 text-sm outline-none bg-white transition ${paidLeaveGrantedLocked ? "border-amber-100 text-slate-400 cursor-not-allowed" : "border-amber-400 text-slate-800 focus:border-amber-500"}`}
+          onBlur={() => { const v = parseInt(paidLeaveGrantedInput) || 0; savePaidLeaveGranted(v); setPaidLeaveGrantedInput(String(v)); }}
+          className="w-16 text-center border border-amber-300 rounded-lg px-2 py-1 text-sm outline-none focus:border-amber-500 bg-white"
         />
-        <span className="text-sm text-slate-500">日</span>
-        <button
-          onClick={() => { setPaidLeaveGrantedLocked(l => !l); }}
-          title={paidLeaveGrantedLocked ? "クリックして編集" : "ロック"}
-          className={`p-1.5 rounded-lg transition ${paidLeaveGrantedLocked ? "text-slate-400 hover:text-amber-600 hover:bg-amber-100" : "text-amber-600 bg-amber-100 hover:bg-amber-200"}`}
-        >
-          {paidLeaveGrantedLocked ? (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          ) : (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
-          )}
-        </button>
         <span className="mx-2 text-slate-300">|</span>
         <span className="text-sm text-slate-500">当年取得</span>
         <span className="text-sm font-bold text-amber-600">{yearlyPaidLeaveUsed}日</span>
