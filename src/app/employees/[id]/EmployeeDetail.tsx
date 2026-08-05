@@ -402,13 +402,11 @@ function NumInput({ value, onChange, disabled, step = 0.5 }: { value: number; on
 
 function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { employeeId: string; employeeName: string; initialPaidLeaveGranted: number }) {
   const now = new Date();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [records, setRecords] = useState<Map<string, AttRec>>(new Map());
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<Set<string>>(new Set());
-  const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
   const [paidLeaveGranted, setPaidLeaveGranted] = useState(initialPaidLeaveGranted);
   const [paidLeaveGrantedInput, setPaidLeaveGrantedInput] = useState(String(initialPaidLeaveGranted));
   const [yearlyPaidLeaveUsed, setYearlyPaidLeaveUsed] = useState(0);
@@ -442,14 +440,12 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
         });
         setRecords(map);
         setLoading(false);
-        setUnlocked(new Set());
       })
       .catch(() => setLoading(false));
   }, [employeeId, year, month]);
 
   function ds(day: number) { return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`; }
   function getRec(day: number) { return records.get(ds(day)) ?? emptyRec(ds(day)); }
-  function isLocked(day: number) { return ds(day) < todayStr && !unlocked.has(ds(day)); }
 
   async function saveDay(day: number, rec: AttRec) {
     const d = ds(day);
@@ -461,7 +457,6 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
   }
 
   function toggleBool(day: number, field: keyof AttRec) {
-    if (isLocked(day)) return;
     const rec = getRec(day);
     const newVal = !(rec[field] as boolean);
     const update: Partial<AttRec> = { [field]: newVal };
@@ -478,11 +473,9 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
     saveDay(day, updated);
   }
   function updateNum(day: number, field: keyof AttRec, v: number) {
-    if (isLocked(day)) return;
     saveDay(day, { ...getRec(day), [field]: v });
   }
   function onTimeChange(day: number, field: "startTime" | "endTime", value: string) {
-    if (isLocked(day)) return;
     const rec = getRec(day);
     const updated: AttRec = { ...rec, [field]: value || null };
     if (updated.startTime && updated.endTime) {
@@ -674,56 +667,47 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
                 <th className="pb-1.5 px-1 text-blue-400 font-medium leading-tight" title="法定休日 割増残業（自動計算）">法定<br/>割残h</th>
                 <th className="pb-1.5 px-1 text-purple-400 font-medium leading-tight" title="法定外休日 普通残業（自動計算）">法外<br/>普残h</th>
                 <th className="pb-1.5 px-1 text-purple-400 font-medium leading-tight" title="法定外休日 割増残業（自動計算）">法外<br/>割残h</th>
-                <th className="pb-1.5 px-1 w-6"></th>
               </tr>
             </thead>
             <tbody>
               {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
                 const dow = new Date(year, month - 1, day).getDay();
                 const rec = getRec(day);
-                const locked = isLocked(day);
                 const d = ds(day);
                 const isSun = dow === 0, isSat = dow === 6;
                 const workHours = calcWorkHours(rec);
                 return (
-                  <tr key={day} className={`border-b border-slate-100 transition ${locked ? "bg-slate-50" : saving.has(d) ? "bg-blue-50/30" : "hover:bg-slate-50"}`}>
-                    <td className={`py-1.5 pr-2 font-semibold ${isSun ? "text-red-500" : isSat ? "text-blue-500" : "text-slate-800"} ${locked ? "opacity-50" : ""}`}>{day}</td>
-                    <td className={`py-1.5 pr-2 ${isSun ? "text-red-400" : isSat ? "text-blue-400" : "text-slate-500"} ${locked ? "opacity-50" : ""}`}>{DOW[dow]}</td>
-                    <td className="py-1.5 px-1"><CB checked={rec.worked} onClick={() => toggleBool(day, "worked")} color="green" disabled={locked} /></td>
-                    <td className="py-1.5 px-1"><CB checked={rec.absent} onClick={() => toggleBool(day, "absent")} color="red" disabled={locked} /></td>
-                    <td className="py-1.5 px-1"><CB checked={rec.paidLeave} onClick={() => toggleBool(day, "paidLeave")} color="amber" disabled={locked} /></td>
-                    <td className="py-1.5 px-1"><CB checked={rec.tardy} onClick={() => toggleBool(day, "tardy")} color="orange" disabled={locked || !rec.worked} /></td>
-                    <td className="py-1.5 px-1"><CB checked={rec.earlyLeave} onClick={() => toggleBool(day, "earlyLeave")} color="orange" disabled={locked || !rec.worked} /></td>
+                  <tr key={day} className={`border-b border-slate-100 transition ${saving.has(d) ? "bg-blue-50/30" : "hover:bg-slate-50"}`}>
+                    <td className={`py-1.5 pr-2 font-semibold ${isSun ? "text-red-500" : isSat ? "text-blue-500" : "text-slate-800"}`}>{day}</td>
+                    <td className={`py-1.5 pr-2 ${isSun ? "text-red-400" : isSat ? "text-blue-400" : "text-slate-500"}`}>{DOW[dow]}</td>
+                    <td className="py-1.5 px-1"><CB checked={rec.worked} onClick={() => toggleBool(day, "worked")} color="green" /></td>
+                    <td className="py-1.5 px-1"><CB checked={rec.absent} onClick={() => toggleBool(day, "absent")} color="red" /></td>
+                    <td className="py-1.5 px-1"><CB checked={rec.paidLeave} onClick={() => toggleBool(day, "paidLeave")} color="amber" /></td>
+                    <td className="py-1.5 px-1"><CB checked={rec.tardy} onClick={() => toggleBool(day, "tardy")} color="orange" disabled={!rec.worked} /></td>
+                    <td className="py-1.5 px-1"><CB checked={rec.earlyLeave} onClick={() => toggleBool(day, "earlyLeave")} color="orange" disabled={!rec.worked} /></td>
                     <td className="py-1 px-1">
-                      <input type="time" value={rec.startTime ?? ""} disabled={locked}
+                      <input type="time" value={rec.startTime ?? ""}
                         onChange={e => onTimeChange(day, "startTime", e.target.value)}
-                        className="w-20 text-xs border border-slate-200 rounded px-1 py-0.5 outline-none focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-300" />
+                        className="w-20 text-xs border border-slate-200 rounded px-1 py-0.5 outline-none focus:border-blue-400" />
                     </td>
                     <td className="py-1 px-1">
-                      <input type="time" value={rec.endTime ?? ""} disabled={locked}
+                      <input type="time" value={rec.endTime ?? ""}
                         onChange={e => onTimeChange(day, "endTime", e.target.value)}
-                        className="w-20 text-xs border border-slate-200 rounded px-1 py-0.5 outline-none focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-300" />
+                        className="w-20 text-xs border border-slate-200 rounded px-1 py-0.5 outline-none focus:border-blue-400" />
                     </td>
                     <td className="py-1.5 px-1 text-center font-medium text-slate-700">
                       {workHours !== null ? (
                         <span className={workHours < 7.5 ? "text-orange-500" : "text-slate-700"}>{workHours.toFixed(1)}h</span>
                       ) : <span className="text-slate-300">—</span>}
                     </td>
-                    <td className="py-1.5 px-1"><CB checked={rec.statutoryHoliday} onClick={() => toggleBool(day, "statutoryHoliday")} color="blue" disabled={locked} /></td>
-                    <td className="py-1.5 px-1"><CB checked={rec.nonStatutoryHoliday} onClick={() => toggleBool(day, "nonStatutoryHoliday")} color="purple" disabled={locked} /></td>
-                    <td className="py-1.5 px-1"><NumInput value={rec.overtimeNormal} onChange={v => updateNum(day, "overtimeNormal", v)} disabled={locked} /></td>
-                    <td className="py-1.5 px-1"><NumInput value={rec.overtimePremium} onChange={v => updateNum(day, "overtimePremium", v)} disabled={locked} /></td>
-                    <td className="py-1.5 px-1"><NumInput value={rec.statHolOvertimeNormal} onChange={v => updateNum(day, "statHolOvertimeNormal", v)} disabled={locked} /></td>
-                    <td className="py-1.5 px-1"><NumInput value={rec.statHolOvertimePremium} onChange={v => updateNum(day, "statHolOvertimePremium", v)} disabled={locked} /></td>
-                    <td className="py-1.5 px-1"><NumInput value={rec.nonStatHolOvertimeNormal} onChange={v => updateNum(day, "nonStatHolOvertimeNormal", v)} disabled={locked} /></td>
-                    <td className="py-1.5 px-1"><NumInput value={rec.nonStatHolOvertimePremium} onChange={v => updateNum(day, "nonStatHolOvertimePremium", v)} disabled={locked} /></td>
-                    <td className="py-1.5 px-1 text-center">
-                      {d < todayStr && (
-                        locked
-                          ? <button onClick={() => setUnlocked(prev => { const n = new Set(prev); n.add(d); return n; })} title="ロック解除" className="text-slate-300 hover:text-amber-500 transition"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
-                          : <button onClick={() => setUnlocked(prev => { const n = new Set(prev); n.delete(d); return n; })} title="再ロック" className="text-amber-500 hover:text-slate-400 transition"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg></button>
-                      )}
-                    </td>
+                    <td className="py-1.5 px-1"><CB checked={rec.statutoryHoliday} onClick={() => toggleBool(day, "statutoryHoliday")} color="blue" /></td>
+                    <td className="py-1.5 px-1"><CB checked={rec.nonStatutoryHoliday} onClick={() => toggleBool(day, "nonStatutoryHoliday")} color="purple" /></td>
+                    <td className="py-1.5 px-1"><NumInput value={rec.overtimeNormal} onChange={v => updateNum(day, "overtimeNormal", v)} disabled={false}/></td>
+                    <td className="py-1.5 px-1"><NumInput value={rec.overtimePremium} onChange={v => updateNum(day, "overtimePremium", v)} disabled={false}/></td>
+                    <td className="py-1.5 px-1"><NumInput value={rec.statHolOvertimeNormal} onChange={v => updateNum(day, "statHolOvertimeNormal", v)} disabled={false}/></td>
+                    <td className="py-1.5 px-1"><NumInput value={rec.statHolOvertimePremium} onChange={v => updateNum(day, "statHolOvertimePremium", v)} disabled={false}/></td>
+                    <td className="py-1.5 px-1"><NumInput value={rec.nonStatHolOvertimeNormal} onChange={v => updateNum(day, "nonStatHolOvertimeNormal", v)} disabled={false}/></td>
+                    <td className="py-1.5 px-1"><NumInput value={rec.nonStatHolOvertimePremium} onChange={v => updateNum(day, "nonStatHolOvertimePremium", v)} disabled={false}/></td>
                   </tr>
                 );
               })}
@@ -731,7 +715,6 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
           </table>
         </div>
       )}
-      <p className="text-xs text-slate-400 mt-3">過去の日付は自動ロック。南京錠アイコンをクリックして一時的に解除できます。</p>
     </div>
   );
 }
