@@ -12,11 +12,11 @@ export async function GET() {
 
   const headers = [
     "従業員名", "社員番号", "日付", "曜日",
-    "出勤", "欠勤", "有給", "遅刻", "遅刻時間", "早退", "早退時間",
+    "出勤", "欠勤", "有給", "遅刻", "早退",
+    "始業時間", "終業時間",
     "法定休出", "法外休出",
     "普通残業h", "割増残業h",
     "法定普残h", "法定割残h", "法外普残h", "法外割残h",
-    "遠距離h",
   ];
 
   const dayNames = ["日", "月", "火", "水", "木", "金", "土"];
@@ -37,9 +37,9 @@ export async function GET() {
         att.absent ? "1" : "0",
         att.paidLeave ? "1" : "0",
         att.tardy ? "1" : "0",
-        att.tardyTime ?? "",
         att.earlyLeave ? "1" : "0",
-        att.earlyLeaveTime ?? "",
+        att.startTime ?? "",
+        att.endTime ?? "",
         att.statutoryHoliday ? "1" : "0",
         att.nonStatutoryHoliday ? "1" : "0",
         String(att.overtimeNormal),
@@ -48,7 +48,6 @@ export async function GET() {
         String(att.statHolOvertimePremium),
         String(att.nonStatHolOvertimeNormal),
         String(att.nonStatHolOvertimePremium),
-        String(att.distanceHours),
       ]);
     }
   }

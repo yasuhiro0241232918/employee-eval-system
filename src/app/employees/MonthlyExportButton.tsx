@@ -8,19 +8,17 @@ type Summary = {
   overtimeNormal: number; overtimePremium: number;
   statHol: number; statHolOvertimeNormal: number; statHolOvertimePremium: number;
   nonStatHol: number; nonStatHolOvertimeNormal: number; nonStatHolOvertimePremium: number;
-  distanceHours: number; distanceAllowance: number;
 };
 type Group = { groupName: string; members: Summary[] };
 
 const HEADERS = ["氏名","労働日数","欠勤日数","有給日数","遅刻回数","早退回数",
-  "普残h","割残h","法定休出","法定普残h","法定割残h","法外休出","法外普残h","法外割残h","遠距h","遠距手当"];
+  "普残h","割残h","法定休出","法定普残h","法定割残h","法外休出","法外普残h","法外割残h"];
 
 function toRow(m: Summary): (string | number)[] {
   return [m.name, m.worked, m.absent, m.paidLeave, m.tardy, m.earlyLeave,
     m.overtimeNormal, m.overtimePremium,
     m.statHol, m.statHolOvertimeNormal, m.statHolOvertimePremium,
-    m.nonStatHol, m.nonStatHolOvertimeNormal, m.nonStatHolOvertimePremium,
-    m.distanceHours, m.distanceAllowance];
+    m.nonStatHol, m.nonStatHolOvertimeNormal, m.nonStatHolOvertimePremium];
 }
 
 export default function MonthlyExportButton() {
@@ -44,10 +42,8 @@ export default function MonthlyExportButton() {
     const rows = data.groups.flatMap(g => [
       `<tr class="group-header"><td colspan="${HEADERS.length}">${g.groupName}</td></tr>`,
       ...g.members.map(m => `<tr>${toRow(m).map((v, i) => {
-        const isLast = i === toRow(m).length - 1;
-        const cls = i === 0 ? ' class="name"' : isLast ? ' class="money"' : '';
-        const display = isLast ? Number(v).toLocaleString() : v;
-        return `<td${cls}>${display}</td>`;
+        const cls = i === 0 ? ' class="name"' : '';
+        return `<td${cls}>${v}</td>`;
       }).join("")}</tr>`),
     ]).join("");
 

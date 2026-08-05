@@ -41,11 +41,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     statHolOvertimePremium: Number(fields.statHolOvertimePremium) || 0,
     nonStatHolOvertimeNormal:  Number(fields.nonStatHolOvertimeNormal) || 0,
     nonStatHolOvertimePremium: Number(fields.nonStatHolOvertimePremium) || 0,
-    distanceHours:          Number(fields.distanceHours) || 0,
     tardy:                  Boolean(fields.tardy),
     earlyLeave:             Boolean(fields.earlyLeave),
-    tardyTime:              fields.tardyTime ? String(fields.tardyTime) : null,
-    earlyLeaveTime:         fields.earlyLeaveTime ? String(fields.earlyLeaveTime) : null,
+    startTime:              fields.startTime ? String(fields.startTime) : null,
+    endTime:                fields.endTime ? String(fields.endTime) : null,
   };
   const record = await prisma.attendance.upsert({
     where: { employeeId_date: { employeeId: params.id, date: d } },

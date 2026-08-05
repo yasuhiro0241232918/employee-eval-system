@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const start = new Date(Date.UTC(year, month - 1, 1));
   const end = new Date(Date.UTC(year, month, 1));
 
-  const [groups, employees, attendances, settings] = await Promise.all([
+  const [groups, employees, attendances] = await Promise.all([
     prisma.group.findMany({
       orderBy: { order: "asc" },
       include: { members: { orderBy: { order: "asc" }, include: { employee: true } } },
@@ -17,10 +17,7 @@ export async function GET(req: NextRequest) {
     prisma.attendance.findMany({
       where: { date: { gte: start, lt: end } },
     }),
-    prisma.setting.findMany(),
   ]);
-
-  const distanceRate = Number(settings.find(s => s.key === "distanceAllowanceRate")?.value ?? 1913);
 
   const attMap = new Map<string, typeof attendances>();
   for (const a of attendances) {
@@ -45,8 +42,6 @@ export async function GET(req: NextRequest) {
       nonStatHol: recs.filter(r => r.nonStatutoryHoliday).length,
       nonStatHolOvertimeNormal: recs.reduce((s, r) => s + r.nonStatHolOvertimeNormal, 0),
       nonStatHolOvertimePremium: recs.reduce((s, r) => s + r.nonStatHolOvertimePremium, 0),
-      distanceHours: recs.reduce((s, r) => s + r.distanceHours, 0),
-      distanceAllowance: Math.round(recs.reduce((s, r) => s + r.distanceHours, 0) * distanceRate),
     };
   }
 
@@ -66,5 +61,5 @@ export async function GET(req: NextRequest) {
     }] : []),
   ];
 
-  return NextResponse.json({ year, month, distanceRate, groups: result });
+  return NextResponse.json({ year, month, groups: result });
 }

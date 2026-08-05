@@ -313,15 +313,14 @@ type AttRec = {
   worked: boolean; absent: boolean; paidLeave: boolean;
   statutoryHoliday: boolean; nonStatutoryHoliday: boolean;
   tardy: boolean; earlyLeave: boolean;
-  tardyTime: string | null; earlyLeaveTime: string | null;
+  startTime: string | null; endTime: string | null;
   overtimeNormal: number; overtimePremium: number;
   statHolOvertimeNormal: number; statHolOvertimePremium: number;
   nonStatHolOvertimeNormal: number; nonStatHolOvertimePremium: number;
-  distanceHours: number;
 };
 
 function emptyRec(ds: string): AttRec {
-  return { date: ds, worked: false, absent: false, paidLeave: false, statutoryHoliday: false, nonStatutoryHoliday: false, tardy: false, earlyLeave: false, tardyTime: null, earlyLeaveTime: null, overtimeNormal: 0, overtimePremium: 0, statHolOvertimeNormal: 0, statHolOvertimePremium: 0, nonStatHolOvertimeNormal: 0, nonStatHolOvertimePremium: 0, distanceHours: 0 };
+  return { date: ds, worked: false, absent: false, paidLeave: false, statutoryHoliday: false, nonStatutoryHoliday: false, tardy: false, earlyLeave: false, startTime: null, endTime: null, overtimeNormal: 0, overtimePremium: 0, statHolOvertimeNormal: 0, statHolOvertimePremium: 0, nonStatHolOvertimeNormal: 0, nonStatHolOvertimePremium: 0 };
 }
 
 function timeToMin(t: string): number {
@@ -329,35 +328,54 @@ function timeToMin(t: string): number {
   return h * 60 + (m || 0);
 }
 
-function calcWorkHours(rec: AttRec): number | null {
-  if (!rec.worked) return null;
-  const startMin = rec.tardy && rec.tardyTime ? timeToMin(rec.tardyTime) : 8 * 60;
-  const endMin = rec.earlyLeave && rec.earlyLeaveTime ? timeToMin(rec.earlyLeaveTime) : 17 * 60;
-  if (startMin >= endMin) return 0;
-  const breaks: [number, number][] = [[10*60, 10*60+15], [12*60, 13*60], [15*60, 15*60+15]];
-  const breakMin = breaks.reduce((sum, [bs, be]) => sum + Math.max(0, Math.min(endMin, be) - Math.max(startMin, bs)), 0);
-  return Math.max(0, (endMin - startMin - breakMin) / 60);
+const BREAKS: [number, number][] = [[10*60, 10*60+15], [12*60, 13*60], [15*60, 15*60+15]];
+
+function netMins(from: number, to: number): number {
+  if (from >= to) return 0;
+  const b = BREAKS.reduce((s, [bs, be]) => s + Math.max(0, Math.min(to, be) - Math.max(from, bs)), 0);
+  return Math.max(0, to - from - b);
 }
 
-const TIME_OPTIONS: string[] = (() => {
-  const opts: string[] = [];
-  for (let h = 8; h <= 17; h++) {
-    for (let m = 0; m < 60; m += 15) {
-      if (h === 17 && m > 0) break;
-      opts.push(`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`);
-    }
+function calcWorkHours(rec: AttRec): number | null {
+  if (rec.startTime && rec.endTime) {
+    const startMin = timeToMin(rec.startTime);
+    let endMin = timeToMin(rec.endTime);
+    if (endMin < startMin) endMin += 24 * 60;
+    if (startMin >= endMin) return 0;
+    return netMins(startMin, endMin) / 60;
   }
-  return opts;
-})();
+  if (!rec.worked) return null;
+  return 7.5;
+}
 
-function TimeSelect({ value, onChange, disabled }: { value: string | null; onChange: (v: string) => void; disabled: boolean }) {
-  return (
-    <select value={value ?? ""} disabled={disabled} onChange={e => onChange(e.target.value)}
-      className="w-16 text-center text-xs border border-orange-200 rounded px-0.5 py-0.5 outline-none focus:border-orange-400 disabled:bg-slate-50 bg-white">
-      <option value="">--:--</option>
-      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-    </select>
-  );
+function calcOvertime(startTime: string, endTime: string, isStatHol: boolean, isNonStatHol: boolean) {
+  const startMin = timeToMin(startTime);
+  let endMin = timeToMin(endTime);
+  if (endMin <= startMin) endMin += 24 * 60;
+  if (endMin <= startMin) return null;
+
+  if (isStatHol || isNonStatHol) {
+    const premiumNet = netMins(Math.max(startMin, 22*60), endMin);
+    const totalNet = netMins(startMin, endMin);
+    const normalNet = totalNet - premiumNet;
+    return {
+      overtimeNormal: 0, overtimePremium: 0,
+      statHolOvertimeNormal: isStatHol ? +((normalNet)/60).toFixed(2) : 0,
+      statHolOvertimePremium: isStatHol ? +((premiumNet)/60).toFixed(2) : 0,
+      nonStatHolOvertimeNormal: isNonStatHol ? +((normalNet)/60).toFixed(2) : 0,
+      nonStatHolOvertimePremium: isNonStatHol ? +((premiumNet)/60).toFixed(2) : 0,
+    };
+  }
+
+  const earlyNet = netMins(startMin, Math.min(endMin, 8*60));
+  const eveningNet = netMins(Math.max(startMin, 17*60), Math.min(endMin, 22*60));
+  const nightNet = netMins(Math.max(startMin, 22*60), endMin);
+  return {
+    overtimeNormal: +((earlyNet + eveningNet)/60).toFixed(2),
+    overtimePremium: +(nightNet/60).toFixed(2),
+    statHolOvertimeNormal: 0, statHolOvertimePremium: 0,
+    nonStatHolOvertimeNormal: 0, nonStatHolOvertimePremium: 0,
+  };
 }
 
 function CB({ checked, onClick, color = "green", disabled = false }: { checked: boolean; onClick: () => void; color?: string; disabled?: boolean }) {
@@ -381,34 +399,6 @@ function NumInput({ value, onChange, disabled, step = 0.5 }: { value: number; on
   );
 }
 
-const MINUTE_OPTIONS = Array.from({ length: 12 }, (_, i) => i * 5);
-
-function DistanceInput({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled: boolean }) {
-  const totalMins = Math.round(value * 60);
-  const hrs = Math.floor(totalMins / 60);
-  const mins = Math.round((totalMins % 60) / 5) * 5 % 60;
-  return (
-    <div className="flex items-center gap-0.5 text-xs">
-      <input
-        type="number" min="0"
-        value={hrs === 0 && mins === 0 ? "" : hrs}
-        disabled={disabled}
-        onChange={e => onChange((parseInt(e.target.value) || 0) + mins / 60)}
-        className="w-8 text-center border border-slate-200 rounded px-0.5 py-1 outline-none focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-300"
-      />
-      <span className="text-slate-400">h</span>
-      <select
-        value={mins}
-        disabled={disabled}
-        onChange={e => onChange(hrs + parseInt(e.target.value) / 60)}
-        className="border border-slate-200 rounded px-0.5 py-1 outline-none focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-300 bg-white"
-      >
-        {MINUTE_OPTIONS.map(m => <option key={m} value={m}>{String(m).padStart(2, "0")}</option>)}
-      </select>
-      <span className="text-slate-400">m</span>
-    </div>
-  );
-}
 
 function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { employeeId: string; employeeName: string; initialPaidLeaveGranted: number }) {
   const now = new Date();
@@ -419,16 +409,9 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
-  const [distanceRate, setDistanceRate] = useState(1913);
   const [paidLeaveGranted, setPaidLeaveGranted] = useState(initialPaidLeaveGranted);
   const [paidLeaveGrantedInput, setPaidLeaveGrantedInput] = useState(String(initialPaidLeaveGranted));
   const [yearlyPaidLeaveUsed, setYearlyPaidLeaveUsed] = useState(0);
-
-  useEffect(() => {
-    fetch("/api/settings").then(r => r.json()).then(data => {
-      if (data.distanceAllowanceRate) setDistanceRate(Number(data.distanceAllowanceRate));
-    });
-  }, []);
 
   function refreshYearlyPaidLeave() {
     const fiscalYear = month >= 4 ? year : year - 1;
@@ -487,17 +470,26 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
       if (field !== "absent") update.absent = false;
       if (field !== "paidLeave") update.paidLeave = false;
     }
-    if (!newVal && field === "tardy") update.tardyTime = null;
-    if (!newVal && field === "earlyLeave") update.earlyLeaveTime = null;
-    saveDay(day, { ...rec, ...update });
+    const updated = { ...rec, ...update };
+    if ((field === "statutoryHoliday" || field === "nonStatutoryHoliday") && updated.startTime && updated.endTime) {
+      const ot = calcOvertime(updated.startTime, updated.endTime, updated.statutoryHoliday, updated.nonStatutoryHoliday);
+      if (ot) Object.assign(updated, ot);
+    }
+    saveDay(day, updated);
   }
   function updateNum(day: number, field: keyof AttRec, v: number) {
     if (isLocked(day)) return;
     saveDay(day, { ...getRec(day), [field]: v });
   }
-  function updateTime(day: number, field: "tardyTime" | "earlyLeaveTime", v: string) {
+  function onTimeChange(day: number, field: "startTime" | "endTime", value: string) {
     if (isLocked(day)) return;
-    saveDay(day, { ...getRec(day), [field]: v || null });
+    const rec = getRec(day);
+    const updated: AttRec = { ...rec, [field]: value || null };
+    if (updated.startTime && updated.endTime) {
+      const ot = calcOvertime(updated.startTime, updated.endTime, updated.statutoryHoliday, updated.nonStatutoryHoliday);
+      if (ot) Object.assign(updated, ot);
+    }
+    saveDay(day, updated);
   }
 
   const prevMonth = () => { if (month === 1) { setYear(y => y - 1); setMonth(12); } else setMonth(m => m - 1); };
@@ -519,8 +511,10 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
         <td style="padding:4px 6px;text-align:center">${check(rec.worked)}</td>
         <td style="padding:4px 6px;text-align:center">${check(rec.absent)}</td>
         <td style="padding:4px 6px;text-align:center">${check(rec.paidLeave)}</td>
-        <td style="padding:4px 6px;text-align:center">${rec.tardy ? (rec.tardyTime ?? "✓") : ""}</td>
-        <td style="padding:4px 6px;text-align:center">${rec.earlyLeave ? (rec.earlyLeaveTime ?? "✓") : ""}</td>
+        <td style="padding:4px 6px;text-align:center">${check(rec.tardy)}</td>
+        <td style="padding:4px 6px;text-align:center">${check(rec.earlyLeave)}</td>
+        <td style="padding:4px 6px;text-align:center">${rec.startTime ?? ""}</td>
+        <td style="padding:4px 6px;text-align:center">${rec.endTime ?? ""}</td>
         <td style="padding:4px 6px;text-align:center">${wh !== null ? wh.toFixed(1) : ""}</td>
         <td style="padding:4px 6px;text-align:center">${check(rec.statutoryHoliday)}</td>
         <td style="padding:4px 6px;text-align:center">${check(rec.nonStatutoryHoliday)}</td>
@@ -530,7 +524,6 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
         <td style="padding:4px 6px;text-align:center">${rec.statHolOvertimePremium || ""}</td>
         <td style="padding:4px 6px;text-align:center">${rec.nonStatHolOvertimeNormal || ""}</td>
         <td style="padding:4px 6px;text-align:center">${rec.nonStatHolOvertimePremium || ""}</td>
-        <td style="padding:4px 6px;text-align:center">${rec.distanceHours || ""}</td>
       </tr>`;
     }).join("");
 
@@ -549,7 +542,6 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
       statP: allR.reduce((s, r) => s + r.statHolOvertimePremium, 0),
       nonN: allR.reduce((s, r) => s + r.nonStatHolOvertimeNormal, 0),
       nonP: allR.reduce((s, r) => s + r.nonStatHolOvertimePremium, 0),
-      dist: allR.reduce((s, r) => s + r.distanceHours, 0),
     };
 
     const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
@@ -582,14 +574,13 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
   <div class="tot-box"><div class="tot-val">${t.statP.toFixed(1)}</div><div class="tot-lbl">法定割残h</div></div>
   <div class="tot-box"><div class="tot-val">${t.nonN.toFixed(1)}</div><div class="tot-lbl">法外普残h</div></div>
   <div class="tot-box"><div class="tot-val">${t.nonP.toFixed(1)}</div><div class="tot-lbl">法外割残h</div></div>
-  <div class="tot-box"><div class="tot-val" style="color:#2c7a7b">${t.dist.toFixed(1)}</div><div class="tot-lbl">遠距離h</div></div>
 </div>
 <table>
 <thead><tr>
   <th>日</th><th>曜</th><th>出勤</th><th>欠勤</th><th>有給</th>
-  <th>遅刻時刻</th><th>早退時刻</th><th>実労h</th>
+  <th>遅刻</th><th>早退</th><th>始業</th><th>終業</th><th>実労h</th>
   <th>法定休出</th><th>法外休出</th>
-  <th>普残h</th><th>割残h</th><th>法定普残h</th><th>法定割残h</th><th>法外普残h</th><th>法外割残h</th><th>遠距h</th>
+  <th>普残h</th><th>割残h</th><th>法定普残h</th><th>法定割残h</th><th>法外普残h</th><th>法外割残h</th>
 </tr></thead>
 <tbody>${rows}</tbody>
 </table>
@@ -613,7 +604,6 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
     statP: allRecs.reduce((s, r) => s + r.statHolOvertimePremium, 0),
     nonN: allRecs.reduce((s, r) => s + r.nonStatHolOvertimeNormal, 0),
     nonP: allRecs.reduce((s, r) => s + r.nonStatHolOvertimePremium, 0),
-    dist: allRecs.reduce((s, r) => s + r.distanceHours, 0),
   };
 
   return (
@@ -653,7 +643,7 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
       </div>
 
       <div className="grid grid-cols-4 gap-2 mb-5">
-        {([["労働日数", tot.worked, "text-green-600"], ["欠勤日数", tot.absent, "text-red-500"], ["有給日数", tot.paidLeave, "text-amber-600"], ["法定休出", tot.statHol, "text-blue-600"], ["法外休出", tot.nonStatHol, "text-purple-600"], ["普通残業h", tot.otN.toFixed(1), "text-slate-700"], ["割増残業h", tot.otP.toFixed(1), "text-slate-700"], ["遠距離h", tot.dist.toFixed(2), "text-teal-600"], ["遠距離手当", `¥${Math.round(tot.dist * distanceRate).toLocaleString()}`, "text-teal-700"]] as [string, string|number, string][]).map(([label, val, cls]) => (
+        {([["労働日数", tot.worked, "text-green-600"], ["欠勤日数", tot.absent, "text-red-500"], ["有給日数", tot.paidLeave, "text-amber-600"], ["法定休出", tot.statHol, "text-blue-600"], ["法外休出", tot.nonStatHol, "text-purple-600"], ["普通残業h", tot.otN.toFixed(1), "text-slate-700"], ["割増残業h", tot.otP.toFixed(1), "text-slate-700"]] as [string, string|number, string][]).map(([label, val, cls]) => (
           <div key={label} className="bg-slate-50 rounded-lg p-2 text-center">
             <p className={`text-lg font-bold ${cls}`}>{val}</p>
             <p className="text-xs text-slate-500 mt-0.5">{label}</p>
@@ -663,7 +653,7 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
 
       {loading ? <p className="text-sm text-slate-400">読み込み中...</p> : (
         <div className="overflow-auto -mx-2 px-2" style={{ maxHeight: "calc(100vh - 360px)" }}>
-          <table className="text-xs border-collapse" style={{ minWidth: "780px" }}>
+          <table className="text-xs border-collapse" style={{ minWidth: "940px" }}>
             <thead className="sticky top-0 z-10 bg-white">
               <tr className="border-b-2 border-slate-200 text-center">
                 <th className="text-left pb-1.5 pr-2 text-slate-500 font-medium">日</th>
@@ -671,19 +661,19 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
                 <th className="pb-1.5 px-1 text-green-600 font-medium" title="出勤">出勤</th>
                 <th className="pb-1.5 px-1 text-red-500 font-medium" title="欠勤">欠勤</th>
                 <th className="pb-1.5 px-1 text-amber-600 font-medium" title="有給">有給</th>
-                <th className="pb-1.5 px-1 text-orange-500 font-medium leading-tight" title="遅刻（チェックで時刻入力）">遅刻</th>
-                <th className="pb-1.5 px-1 text-orange-500 font-medium leading-tight" title="早退（チェックで時刻入力）">早退</th>
+                <th className="pb-1.5 px-1 text-orange-500 font-medium leading-tight" title="遅刻">遅刻</th>
+                <th className="pb-1.5 px-1 text-orange-500 font-medium leading-tight" title="早退">早退</th>
+                <th className="pb-1.5 px-1 text-slate-600 font-medium leading-tight" title="始業時間">始業</th>
+                <th className="pb-1.5 px-1 text-slate-600 font-medium leading-tight" title="終業時間">終業</th>
                 <th className="pb-1.5 px-1 text-slate-600 font-medium leading-tight" title="実労働時間（自動計算）">実労<br/>時間</th>
                 <th className="pb-1.5 px-1 text-blue-600 font-medium leading-tight" title="法定休日出勤">法定<br/>休出</th>
                 <th className="pb-1.5 px-1 text-purple-600 font-medium leading-tight" title="法定外休日出勤">法外<br/>休出</th>
-                <th className="pb-1.5 px-1 text-slate-500 font-medium leading-tight" title="普通残業（時間）">普残<br/>h</th>
-                <th className="pb-1.5 px-1 text-slate-500 font-medium leading-tight" title="割増残業（時間）">割残<br/>h</th>
-                <th className="pb-1.5 px-1 text-blue-400 font-medium leading-tight" title="法定休日 普通残業">法定<br/>普残h</th>
-                <th className="pb-1.5 px-1 text-blue-400 font-medium leading-tight" title="法定休日 割増残業">法定<br/>割残h</th>
-                <th className="pb-1.5 px-1 text-purple-400 font-medium leading-tight" title="法定外休日 普通残業">法外<br/>普残h</th>
-                <th className="pb-1.5 px-1 text-purple-400 font-medium leading-tight" title="法定外休日 割増残業">法外<br/>割残h</th>
-                <th className="pb-1.5 px-1 text-teal-600 font-medium leading-tight" title="遠距離手当用時間">遠距<br/>h</th>
-                <th className="pb-1.5 px-1 text-teal-700 font-medium leading-tight" title="遠距離手当（自動計算）">遠距<br/>手当</th>
+                <th className="pb-1.5 px-1 text-slate-500 font-medium leading-tight" title="普通残業（自動計算）">普残<br/>h</th>
+                <th className="pb-1.5 px-1 text-slate-500 font-medium leading-tight" title="割増残業（自動計算）">割残<br/>h</th>
+                <th className="pb-1.5 px-1 text-blue-400 font-medium leading-tight" title="法定休日 普通残業（自動計算）">法定<br/>普残h</th>
+                <th className="pb-1.5 px-1 text-blue-400 font-medium leading-tight" title="法定休日 割増残業（自動計算）">法定<br/>割残h</th>
+                <th className="pb-1.5 px-1 text-purple-400 font-medium leading-tight" title="法定外休日 普通残業（自動計算）">法外<br/>普残h</th>
+                <th className="pb-1.5 px-1 text-purple-400 font-medium leading-tight" title="法定外休日 割増残業（自動計算）">法外<br/>割残h</th>
                 <th className="pb-1.5 px-1 w-6"></th>
               </tr>
             </thead>
@@ -702,21 +692,17 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
                     <td className="py-1.5 px-1"><CB checked={rec.worked} onClick={() => toggleBool(day, "worked")} color="green" disabled={locked} /></td>
                     <td className="py-1.5 px-1"><CB checked={rec.absent} onClick={() => toggleBool(day, "absent")} color="red" disabled={locked} /></td>
                     <td className="py-1.5 px-1"><CB checked={rec.paidLeave} onClick={() => toggleBool(day, "paidLeave")} color="amber" disabled={locked} /></td>
+                    <td className="py-1.5 px-1"><CB checked={rec.tardy} onClick={() => toggleBool(day, "tardy")} color="orange" disabled={locked || !rec.worked} /></td>
+                    <td className="py-1.5 px-1"><CB checked={rec.earlyLeave} onClick={() => toggleBool(day, "earlyLeave")} color="orange" disabled={locked || !rec.worked} /></td>
                     <td className="py-1 px-1">
-                      <div className="flex flex-col items-center gap-0.5">
-                        <CB checked={rec.tardy} onClick={() => toggleBool(day, "tardy")} color="orange" disabled={locked || !rec.worked} />
-                        {rec.tardy && (
-                          <TimeSelect value={rec.tardyTime} onChange={v => updateTime(day, "tardyTime", v)} disabled={locked} />
-                        )}
-                      </div>
+                      <input type="time" value={rec.startTime ?? ""} disabled={locked}
+                        onChange={e => onTimeChange(day, "startTime", e.target.value)}
+                        className="w-20 text-xs border border-slate-200 rounded px-1 py-0.5 outline-none focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-300" />
                     </td>
                     <td className="py-1 px-1">
-                      <div className="flex flex-col items-center gap-0.5">
-                        <CB checked={rec.earlyLeave} onClick={() => toggleBool(day, "earlyLeave")} color="orange" disabled={locked || !rec.worked} />
-                        {rec.earlyLeave && (
-                          <TimeSelect value={rec.earlyLeaveTime} onChange={v => updateTime(day, "earlyLeaveTime", v)} disabled={locked} />
-                        )}
-                      </div>
+                      <input type="time" value={rec.endTime ?? ""} disabled={locked}
+                        onChange={e => onTimeChange(day, "endTime", e.target.value)}
+                        className="w-20 text-xs border border-slate-200 rounded px-1 py-0.5 outline-none focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-300" />
                     </td>
                     <td className="py-1.5 px-1 text-center font-medium text-slate-700">
                       {workHours !== null ? (
@@ -731,10 +717,6 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
                     <td className="py-1.5 px-1"><NumInput value={rec.statHolOvertimePremium} onChange={v => updateNum(day, "statHolOvertimePremium", v)} disabled={locked} /></td>
                     <td className="py-1.5 px-1"><NumInput value={rec.nonStatHolOvertimeNormal} onChange={v => updateNum(day, "nonStatHolOvertimeNormal", v)} disabled={locked} /></td>
                     <td className="py-1.5 px-1"><NumInput value={rec.nonStatHolOvertimePremium} onChange={v => updateNum(day, "nonStatHolOvertimePremium", v)} disabled={locked} /></td>
-                    <td className="py-1.5 px-1"><DistanceInput value={rec.distanceHours} onChange={v => updateNum(day, "distanceHours", v)} disabled={locked} /></td>
-                    <td className="py-1.5 px-1 text-center text-xs font-medium text-teal-700">
-                      {rec.distanceHours > 0 ? `¥${Math.round(rec.distanceHours * distanceRate).toLocaleString()}` : <span className="text-slate-300">—</span>}
-                    </td>
                     <td className="py-1.5 px-1 text-center">
                       {d < todayStr && (
                         locked
