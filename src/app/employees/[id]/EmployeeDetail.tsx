@@ -400,6 +400,86 @@ function NumInput({ value, onChange, disabled, step = 0.5 }: { value: number; on
 }
 
 
+function HolidaySettingModal({ year, month, onClose }: { year: number; month: number; onClose: () => void }) {
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/holiday-settings?year=${year}&month=${month}`)
+      .then(r => r.json())
+      .then((data: { days: number[] }) => setSelected(new Set(data.days)));
+  }, [year, month]);
+
+  function toggleDay(d: number) {
+    setSelected(prev => { const n = new Set(prev); if (n.has(d)) n.delete(d); else n.add(d); return n; });
+  }
+
+  async function save() {
+    setSaving(true);
+    await fetch("/api/holiday-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ year, month, days: Array.from(selected).sort((a, b) => a - b) }),
+    });
+    setSaving(false);
+    onClose();
+  }
+
+  const firstDow = new Date(year, month - 1, 1).getDay();
+  const weeks: (number | null)[][] = [];
+  let week: (number | null)[] = Array(firstDow).fill(null);
+  for (let d = 1; d <= daysInMonth; d++) {
+    week.push(d);
+    if (week.length === 7) { weeks.push(week); week = []; }
+  }
+  if (week.length > 0) { while (week.length < 7) week.push(null); weeks.push(week); }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl p-5 w-80" onClick={e => e.stopPropagation()}>
+        <h2 className="text-sm font-bold text-slate-800 mb-1">{year}年{month}月 定休日設定</h2>
+        <p className="text-xs text-slate-400 mb-3">定休日にしたい日をタップしてください（灰色 = 定休日）</p>
+        <div className="grid grid-cols-7 text-center text-xs mb-1">
+          {["日","月","火","水","木","金","土"].map((d, i) => (
+            <div key={d} className={`pb-1 font-medium ${i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-slate-400"}`}>{d}</div>
+          ))}
+        </div>
+        <div className="space-y-1">
+          {weeks.map((week, wi) => (
+            <div key={wi} className="grid grid-cols-7 gap-1 text-center">
+              {week.map((d, di) => {
+                if (!d) return <div key={di} />;
+                const isSel = selected.has(d);
+                const isSun = di === 0, isSat = di === 6;
+                return (
+                  <button key={d} onClick={() => toggleDay(d)}
+                    className={`h-8 w-full rounded-lg text-xs font-medium transition
+                      ${isSel ? "bg-slate-300 text-slate-600" :
+                        isSun ? "text-red-400 hover:bg-red-50" :
+                        isSat ? "text-blue-400 hover:bg-blue-50" :
+                        "text-slate-700 hover:bg-slate-100"}`}>
+                    {d}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2 mt-4">
+          <button onClick={save} disabled={saving}
+            className="flex-1 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition">
+            {saving ? "保存中..." : "保存"}
+          </button>
+          <button onClick={onClose} className="flex-1 py-2 text-slate-500 hover:text-slate-700 text-sm border border-slate-200 rounded-lg transition">
+            キャンセル
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { employeeId: string; employeeName: string; initialPaidLeaveGranted: number }) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -410,6 +490,8 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
   const [paidLeaveGranted, setPaidLeaveGranted] = useState(initialPaidLeaveGranted);
   const [paidLeaveGrantedInput, setPaidLeaveGrantedInput] = useState(String(initialPaidLeaveGranted));
   const [yearlyPaidLeaveUsed, setYearlyPaidLeaveUsed] = useState(0);
+  const [holidayDays, setHolidayDays] = useState<Set<number>>(new Set());
+  const [showHolidayModal, setShowHolidayModal] = useState(false);
 
   function refreshYearlyPaidLeave() {
     const fiscalYear = month >= 4 ? year : year - 1;
@@ -443,6 +525,12 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
       })
       .catch(() => setLoading(false));
   }, [employeeId, year, month]);
+
+  useEffect(() => {
+    fetch(`/api/holiday-settings?year=${year}&month=${month}`)
+      .then(r => r.json())
+      .then((data: { days: number[] }) => setHolidayDays(new Set(data.days)));
+  }, [year, month]);
 
   function ds(day: number) { return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`; }
   function getRec(day: number) { return records.get(ds(day)) ?? emptyRec(ds(day)); }
@@ -607,13 +695,29 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
           <span className="text-base font-bold text-slate-800" style={{ minWidth:"110px", textAlign:"center" }}>{year}年 {month}月</span>
           <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
         </div>
-        <button onClick={handlePrint} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"6px 12px", borderRadius:"8px", background:"#334155", color:"white", fontSize:"12px", fontWeight:600, border:"none", cursor:"pointer" }}
-          onMouseEnter={e => (e.currentTarget.style.background="#1e293b")}
-          onMouseLeave={e => (e.currentTarget.style.background="#334155")}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-          印刷
-        </button>
+        <div style={{ display:"flex", gap:"8px" }}>
+          <button onClick={() => setShowHolidayModal(true)} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"6px 12px", borderRadius:"8px", background:"#64748b", color:"white", fontSize:"12px", fontWeight:600, border:"none", cursor:"pointer" }}
+            onMouseEnter={e => (e.currentTarget.style.background="#475569")}
+            onMouseLeave={e => (e.currentTarget.style.background="#64748b")}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            定休日設定
+          </button>
+          <button onClick={handlePrint} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"6px 12px", borderRadius:"8px", background:"#334155", color:"white", fontSize:"12px", fontWeight:600, border:"none", cursor:"pointer" }}
+            onMouseEnter={e => (e.currentTarget.style.background="#1e293b")}
+            onMouseLeave={e => (e.currentTarget.style.background="#334155")}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            印刷
+          </button>
+        </div>
       </div>
+      {showHolidayModal && (
+        <HolidaySettingModal year={year} month={month} onClose={() => {
+          setShowHolidayModal(false);
+          fetch(`/api/holiday-settings?year=${year}&month=${month}`)
+            .then(r => r.json())
+            .then((data: { days: number[] }) => setHolidayDays(new Set(data.days)));
+        }} />
+      )}
 
       {/* 今年度付与日数 */}
       <div className="flex items-center gap-3 mb-4 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
@@ -675,9 +779,10 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
                 const rec = getRec(day);
                 const d = ds(day);
                 const isSun = dow === 0, isSat = dow === 6;
+                const isHoliday = holidayDays.has(day);
                 const workHours = calcWorkHours(rec);
                 return (
-                  <tr key={day} className={`border-b border-slate-100 transition ${saving.has(d) ? "bg-blue-50/30" : "hover:bg-slate-50"}`}>
+                  <tr key={day} className={`border-b border-slate-100 transition ${saving.has(d) ? "bg-blue-50/30" : isHoliday ? "bg-slate-100" : "hover:bg-slate-50"}`}>
                     <td className={`py-1.5 pr-2 font-semibold ${isSun ? "text-red-500" : isSat ? "text-blue-500" : "text-slate-800"}`}>{day}</td>
                     <td className={`py-1.5 pr-2 ${isSun ? "text-red-400" : isSat ? "text-blue-400" : "text-slate-500"}`}>{DOW[dow]}</td>
                     <td className="py-1.5 px-1"><CB checked={rec.worked} onClick={() => toggleBool(day, "worked")} color="green" /></td>
