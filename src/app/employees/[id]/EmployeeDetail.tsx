@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -388,22 +388,31 @@ function CB({ checked, onClick, color = "green", disabled = false }: { checked: 
 }
 
 function TimeInput({ value, onChange }: { value: string | null; onChange: (v: string) => void }) {
-  const [focused, setFocused] = useState(false);
-  if (!value && !focused) {
+  const [active, setActive] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (active && !value && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [active]);
+
+  if (!value && !active) {
     return (
       <button
-        onClick={() => setFocused(true)}
+        type="button"
+        onClick={() => setActive(true)}
         className="w-[72px] h-[22px] border border-slate-200 rounded block"
       />
     );
   }
   return (
     <input
+      ref={inputRef}
       type="time"
       value={value ?? ""}
-      autoFocus={!value}
       onChange={e => onChange(e.target.value)}
-      onBlur={() => setFocused(false)}
+      onBlur={() => setActive(false)}
       autoComplete="off"
       className="w-[72px] text-xs border border-slate-200 rounded px-0.5 py-0.5 outline-none focus:border-blue-400"
     />
