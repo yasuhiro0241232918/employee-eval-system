@@ -387,6 +387,29 @@ function CB({ checked, onClick, color = "green", disabled = false }: { checked: 
   );
 }
 
+function TimeInput({ value, onChange }: { value: string | null; onChange: (v: string) => void }) {
+  const [focused, setFocused] = useState(false);
+  if (!value && !focused) {
+    return (
+      <button
+        onClick={() => setFocused(true)}
+        className="w-[72px] h-[22px] border border-slate-200 rounded block"
+      />
+    );
+  }
+  return (
+    <input
+      type="time"
+      value={value ?? ""}
+      autoFocus={!value}
+      onChange={e => onChange(e.target.value)}
+      onBlur={() => setFocused(false)}
+      autoComplete="off"
+      className="w-[72px] text-xs border border-slate-200 rounded px-0.5 py-0.5 outline-none focus:border-blue-400"
+    />
+  );
+}
+
 function NumInput({ value, onChange, disabled, step = 0.5 }: { value: number; onChange: (v: number) => void; disabled: boolean; step?: number }) {
   const [local, setLocal] = useState(value === 0 ? "" : String(value));
   useEffect(() => { setLocal(value === 0 ? "" : String(value)); }, [value]);
@@ -791,18 +814,10 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
                     <td className="py-1.5 px-1"><CB checked={rec.tardy} onClick={() => toggleBool(day, "tardy")} color="orange" disabled={!rec.worked} /></td>
                     <td className="py-1.5 px-1"><CB checked={rec.earlyLeave} onClick={() => toggleBool(day, "earlyLeave")} color="orange" disabled={!rec.worked} /></td>
                     <td className="py-1 px-1">
-                      <input type="time" value={rec.startTime ?? ""}
-                        onChange={e => onTimeChange(day, "startTime", e.target.value)}
-                        autoComplete="off"
-                        data-filled={rec.startTime ? true : undefined}
-                        className="w-[72px] text-xs border border-slate-200 rounded px-0.5 py-0.5 outline-none focus:border-blue-400" />
+                      <TimeInput value={rec.startTime} onChange={v => onTimeChange(day, "startTime", v)} />
                     </td>
                     <td className="py-1 px-1">
-                      <input type="time" value={rec.endTime ?? ""}
-                        onChange={e => onTimeChange(day, "endTime", e.target.value)}
-                        autoComplete="off"
-                        data-filled={rec.endTime ? true : undefined}
-                        className="w-[72px] text-xs border border-slate-200 rounded px-0.5 py-0.5 outline-none focus:border-blue-400" />
+                      <TimeInput value={rec.endTime} onChange={v => onTimeChange(day, "endTime", v)} />
                     </td>
                     <td className="py-1.5 px-1 text-center font-medium text-slate-700">
                       {workHours !== null ? (
