@@ -1,3 +1,8 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* 値が未入力の時間入力欄のプレースホルダーを非表示 */
+input[type="time"]::-webkit-datetime-edit { color: transparent; }
+input[type="time"]:focus::-webkit-datetime-edit { color: inherit; }
+input[type="time"][data-filled]::-webkit-datetime-edit { color: inherit; }

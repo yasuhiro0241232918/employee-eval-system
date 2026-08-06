@@ -794,12 +794,14 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
                       <input type="time" value={rec.startTime ?? ""}
                         onChange={e => onTimeChange(day, "startTime", e.target.value)}
                         autoComplete="off"
+                        data-filled={rec.startTime ? true : undefined}
                         className="w-[72px] text-xs border border-slate-200 rounded px-0.5 py-0.5 outline-none focus:border-blue-400" />
                     </td>
                     <td className="py-1 px-1">
                       <input type="time" value={rec.endTime ?? ""}
                         onChange={e => onTimeChange(day, "endTime", e.target.value)}
                         autoComplete="off"
+                        data-filled={rec.endTime ? true : undefined}
                         className="w-[72px] text-xs border border-slate-200 rounded px-0.5 py-0.5 outline-none focus:border-blue-400" />
                     </td>
                     <td className="py-1.5 px-1 text-center font-medium text-slate-700">
