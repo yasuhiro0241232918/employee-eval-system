@@ -379,7 +379,9 @@ function TimeInput({ value, onChange }: { value: string | null; onChange: (v: st
       value={value ?? ""}
       onChange={e => onChange(e.target.value)}
       autoComplete="off"
-      data-filled={value ? "1" : undefined}
+      style={!value ? { color: 'transparent' } : undefined}
+      onFocus={e => { e.currentTarget.style.color = ''; }}
+      onBlur={e => { if (!e.currentTarget.value) e.currentTarget.style.color = 'transparent'; }}
       className="w-[72px] text-xs border border-slate-200 rounded px-0.5 py-0.5 outline-none focus:border-blue-400"
     />
   );
@@ -719,7 +721,7 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
         </span>
       </div>
 
-      <div className="grid grid-cols-4 gap-2 mb-5">
+      <div className="grid grid-cols-6 gap-2 mb-5">
         {([["労働日数", tot.worked, "text-green-600"], ["欠勤日数", tot.absent, "text-red-500"], ["有給日数", tot.paidLeave, "text-amber-600"], ["法定休出", tot.statHol, "text-blue-600"], ["法外休出", tot.nonStatHol, "text-purple-600"], ["残業時間h", tot.otN.toFixed(1), "text-slate-700"]] as [string, string|number, string][]).map(([label, val, cls]) => (
           <div key={label} className="bg-slate-50 rounded-lg p-2 text-center">
             <p className={`text-lg font-bold ${cls}`}>{val}</p>
