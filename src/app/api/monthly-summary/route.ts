@@ -35,13 +35,8 @@ export async function GET(req: NextRequest) {
       tardy: recs.filter(r => r.tardy).length,
       earlyLeave: recs.filter(r => r.earlyLeave).length,
       overtimeNormal: recs.reduce((s, r) => s + r.overtimeNormal, 0),
-      overtimePremium: recs.reduce((s, r) => s + r.overtimePremium, 0),
       statHol: recs.filter(r => r.statutoryHoliday).length,
-      statHolOvertimeNormal: recs.reduce((s, r) => s + r.statHolOvertimeNormal, 0),
-      statHolOvertimePremium: recs.reduce((s, r) => s + r.statHolOvertimePremium, 0),
       nonStatHol: recs.filter(r => r.nonStatutoryHoliday).length,
-      nonStatHolOvertimeNormal: recs.reduce((s, r) => s + r.nonStatHolOvertimeNormal, 0),
-      nonStatHolOvertimePremium: recs.reduce((s, r) => s + r.nonStatHolOvertimePremium, 0),
     };
   }
 

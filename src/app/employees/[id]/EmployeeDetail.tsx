@@ -354,25 +354,13 @@ function calcOvertime(startTime: string, endTime: string, isStatHol: boolean, is
   if (endMin <= startMin) endMin += 24 * 60;
   if (endMin <= startMin) return null;
 
-  if (isStatHol || isNonStatHol) {
-    const premiumNet = netMins(Math.max(startMin, 22*60), endMin);
-    const totalNet = netMins(startMin, endMin);
-    const normalNet = totalNet - premiumNet;
-    return {
-      overtimeNormal: 0, overtimePremium: 0,
-      statHolOvertimeNormal: isStatHol ? +((normalNet)/60).toFixed(2) : 0,
-      statHolOvertimePremium: isStatHol ? +((premiumNet)/60).toFixed(2) : 0,
-      nonStatHolOvertimeNormal: isNonStatHol ? +((normalNet)/60).toFixed(2) : 0,
-      nonStatHolOvertimePremium: isNonStatHol ? +((premiumNet)/60).toFixed(2) : 0,
-    };
-  }
+  const overtimeNormal = isStatHol || isNonStatHol
+    ? +(netMins(startMin, endMin) / 60).toFixed(2)
+    : +((netMins(startMin, Math.min(endMin, 8*60)) + netMins(Math.max(startMin, 17*60), endMin)) / 60).toFixed(2);
 
-  const earlyNet = netMins(startMin, Math.min(endMin, 8*60));
-  const eveningNet = netMins(Math.max(startMin, 17*60), Math.min(endMin, 22*60));
-  const nightNet = netMins(Math.max(startMin, 22*60), endMin);
   return {
-    overtimeNormal: +((earlyNet + eveningNet)/60).toFixed(2),
-    overtimePremium: +(nightNet/60).toFixed(2),
+    overtimeNormal,
+    overtimePremium: 0,
     statHolOvertimeNormal: 0, statHolOvertimePremium: 0,
     nonStatHolOvertimeNormal: 0, nonStatHolOvertimePremium: 0,
   };
@@ -633,11 +621,6 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
         <td style="padding:4px 6px;text-align:center">${check(rec.statutoryHoliday)}</td>
         <td style="padding:4px 6px;text-align:center">${check(rec.nonStatutoryHoliday)}</td>
         <td style="padding:4px 6px;text-align:center">${rec.overtimeNormal || ""}</td>
-        <td style="padding:4px 6px;text-align:center">${rec.overtimePremium || ""}</td>
-        <td style="padding:4px 6px;text-align:center">${rec.statHolOvertimeNormal || ""}</td>
-        <td style="padding:4px 6px;text-align:center">${rec.statHolOvertimePremium || ""}</td>
-        <td style="padding:4px 6px;text-align:center">${rec.nonStatHolOvertimeNormal || ""}</td>
-        <td style="padding:4px 6px;text-align:center">${rec.nonStatHolOvertimePremium || ""}</td>
       </tr>`;
     }).join("");
 
@@ -651,11 +634,6 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
       statHol: allR.filter(r => r.statutoryHoliday).length,
       nonStatHol: allR.filter(r => r.nonStatutoryHoliday).length,
       otN: allR.reduce((s, r) => s + r.overtimeNormal, 0),
-      otP: allR.reduce((s, r) => s + r.overtimePremium, 0),
-      statN: allR.reduce((s, r) => s + r.statHolOvertimeNormal, 0),
-      statP: allR.reduce((s, r) => s + r.statHolOvertimePremium, 0),
-      nonN: allR.reduce((s, r) => s + r.nonStatHolOvertimeNormal, 0),
-      nonP: allR.reduce((s, r) => s + r.nonStatHolOvertimePremium, 0),
     };
 
     const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
@@ -682,19 +660,14 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
   <div class="tot-box"><div class="tot-val" style="color:#dd6b20">${t.earlyLeave}</div><div class="tot-lbl">早退回数</div></div>
   <div class="tot-box"><div class="tot-val" style="color:#3182ce">${t.statHol}</div><div class="tot-lbl">法定休出</div></div>
   <div class="tot-box"><div class="tot-val" style="color:#805ad5">${t.nonStatHol}</div><div class="tot-lbl">法外休出</div></div>
-  <div class="tot-box"><div class="tot-val">${t.otN.toFixed(1)}</div><div class="tot-lbl">普通残業h</div></div>
-  <div class="tot-box"><div class="tot-val">${t.otP.toFixed(1)}</div><div class="tot-lbl">割増残業h</div></div>
-  <div class="tot-box"><div class="tot-val">${t.statN.toFixed(1)}</div><div class="tot-lbl">法定普残h</div></div>
-  <div class="tot-box"><div class="tot-val">${t.statP.toFixed(1)}</div><div class="tot-lbl">法定割残h</div></div>
-  <div class="tot-box"><div class="tot-val">${t.nonN.toFixed(1)}</div><div class="tot-lbl">法外普残h</div></div>
-  <div class="tot-box"><div class="tot-val">${t.nonP.toFixed(1)}</div><div class="tot-lbl">法外割残h</div></div>
+  <div class="tot-box"><div class="tot-val">${t.otN.toFixed(1)}</div><div class="tot-lbl">残業時間h</div></div>
 </div>
 <table>
 <thead><tr>
   <th>日</th><th>曜</th><th>出勤</th><th>欠勤</th><th>有給</th>
   <th>遅刻</th><th>早退</th><th>始業</th><th>終業</th><th>実労h</th>
   <th>法定休出</th><th>法外休出</th>
-  <th>普残h</th><th>割残h</th><th>法定普残h</th><th>法定割残h</th><th>法外普残h</th><th>法外割残h</th>
+  <th>残業h</th>
 </tr></thead>
 <tbody>${rows}</tbody>
 </table>
@@ -713,11 +686,6 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
     statHol: allRecs.filter(r => r.statutoryHoliday).length,
     nonStatHol: allRecs.filter(r => r.nonStatutoryHoliday).length,
     otN: allRecs.reduce((s, r) => s + r.overtimeNormal, 0),
-    otP: allRecs.reduce((s, r) => s + r.overtimePremium, 0),
-    statN: allRecs.reduce((s, r) => s + r.statHolOvertimeNormal, 0),
-    statP: allRecs.reduce((s, r) => s + r.statHolOvertimePremium, 0),
-    nonN: allRecs.reduce((s, r) => s + r.nonStatHolOvertimeNormal, 0),
-    nonP: allRecs.reduce((s, r) => s + r.nonStatHolOvertimePremium, 0),
   };
 
   return (
@@ -773,7 +741,7 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
       </div>
 
       <div className="grid grid-cols-4 gap-2 mb-5">
-        {([["労働日数", tot.worked, "text-green-600"], ["欠勤日数", tot.absent, "text-red-500"], ["有給日数", tot.paidLeave, "text-amber-600"], ["法定休出", tot.statHol, "text-blue-600"], ["法外休出", tot.nonStatHol, "text-purple-600"], ["普通残業h", tot.otN.toFixed(1), "text-slate-700"], ["割増残業h", tot.otP.toFixed(1), "text-slate-700"]] as [string, string|number, string][]).map(([label, val, cls]) => (
+        {([["労働日数", tot.worked, "text-green-600"], ["欠勤日数", tot.absent, "text-red-500"], ["有給日数", tot.paidLeave, "text-amber-600"], ["法定休出", tot.statHol, "text-blue-600"], ["法外休出", tot.nonStatHol, "text-purple-600"], ["残業時間h", tot.otN.toFixed(1), "text-slate-700"]] as [string, string|number, string][]).map(([label, val, cls]) => (
           <div key={label} className="bg-slate-50 rounded-lg p-2 text-center">
             <p className={`text-lg font-bold ${cls}`}>{val}</p>
             <p className="text-xs text-slate-500 mt-0.5">{label}</p>
@@ -798,12 +766,7 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
                 <th className="pb-1.5 px-1 text-slate-600 font-medium leading-tight" title="実労働時間（自動計算）">実労<br/>時間</th>
                 <th className="pb-1.5 px-1 text-blue-600 font-medium leading-tight" title="法定休日出勤">法定<br/>休出</th>
                 <th className="pb-1.5 px-1 text-purple-600 font-medium leading-tight" title="法定外休日出勤">法外<br/>休出</th>
-                <th className="pb-1.5 px-1 text-slate-500 font-medium leading-tight" title="普通残業（自動計算）">普残<br/>h</th>
-                <th className="pb-1.5 px-1 text-slate-500 font-medium leading-tight" title="割増残業（自動計算）">割残<br/>h</th>
-                <th className="pb-1.5 px-1 text-blue-400 font-medium leading-tight" title="法定休日 普通残業（自動計算）">法定<br/>普残h</th>
-                <th className="pb-1.5 px-1 text-blue-400 font-medium leading-tight" title="法定休日 割増残業（自動計算）">法定<br/>割残h</th>
-                <th className="pb-1.5 px-1 text-purple-400 font-medium leading-tight" title="法定外休日 普通残業（自動計算）">法外<br/>普残h</th>
-                <th className="pb-1.5 px-1 text-purple-400 font-medium leading-tight" title="法定外休日 割増残業（自動計算）">法外<br/>割残h</th>
+                <th className="pb-1.5 px-1 text-slate-500 font-medium leading-tight" title="残業時間（自動計算）">残業<br/>h</th>
               </tr>
             </thead>
             <tbody>
@@ -837,11 +800,6 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
                     <td className="py-1.5 px-1"><CB checked={rec.statutoryHoliday} onClick={() => toggleBool(day, "statutoryHoliday")} color="blue" /></td>
                     <td className="py-1.5 px-1"><CB checked={rec.nonStatutoryHoliday} onClick={() => toggleBool(day, "nonStatutoryHoliday")} color="purple" /></td>
                     <td className="py-1.5 px-1"><NumInput value={rec.overtimeNormal} onChange={v => updateNum(day, "overtimeNormal", v)} disabled={false}/></td>
-                    <td className="py-1.5 px-1"><NumInput value={rec.overtimePremium} onChange={v => updateNum(day, "overtimePremium", v)} disabled={false}/></td>
-                    <td className="py-1.5 px-1"><NumInput value={rec.statHolOvertimeNormal} onChange={v => updateNum(day, "statHolOvertimeNormal", v)} disabled={false}/></td>
-                    <td className="py-1.5 px-1"><NumInput value={rec.statHolOvertimePremium} onChange={v => updateNum(day, "statHolOvertimePremium", v)} disabled={false}/></td>
-                    <td className="py-1.5 px-1"><NumInput value={rec.nonStatHolOvertimeNormal} onChange={v => updateNum(day, "nonStatHolOvertimeNormal", v)} disabled={false}/></td>
-                    <td className="py-1.5 px-1"><NumInput value={rec.nonStatHolOvertimePremium} onChange={v => updateNum(day, "nonStatHolOvertimePremium", v)} disabled={false}/></td>
                   </tr>
                 );
               })}

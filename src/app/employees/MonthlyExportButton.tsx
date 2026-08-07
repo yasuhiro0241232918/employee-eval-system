@@ -5,20 +5,17 @@ type Summary = {
   name: string;
   worked: number; absent: number; paidLeave: number;
   tardy: number; earlyLeave: number;
-  overtimeNormal: number; overtimePremium: number;
-  statHol: number; statHolOvertimeNormal: number; statHolOvertimePremium: number;
-  nonStatHol: number; nonStatHolOvertimeNormal: number; nonStatHolOvertimePremium: number;
+  overtimeNormal: number;
+  statHol: number; nonStatHol: number;
 };
 type Group = { groupName: string; members: Summary[] };
 
 const HEADERS = ["氏名","労働日数","欠勤日数","有給日数","遅刻回数","早退回数",
-  "普残h","割残h","法定休出","法定普残h","法定割残h","法外休出","法外普残h","法外割残h"];
+  "残業時間h","法定休出","法外休出"];
 
 function toRow(m: Summary): (string | number)[] {
   return [m.name, m.worked, m.absent, m.paidLeave, m.tardy, m.earlyLeave,
-    m.overtimeNormal, m.overtimePremium,
-    m.statHol, m.statHolOvertimeNormal, m.statHolOvertimePremium,
-    m.nonStatHol, m.nonStatHolOvertimeNormal, m.nonStatHolOvertimePremium];
+    m.overtimeNormal, m.statHol, m.nonStatHol];
 }
 
 export default function MonthlyExportButton() {

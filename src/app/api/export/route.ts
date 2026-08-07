@@ -15,8 +15,7 @@ export async function GET() {
     "出勤", "欠勤", "有給", "遅刻", "早退",
     "始業時間", "終業時間",
     "法定休出", "法外休出",
-    "普通残業h", "割増残業h",
-    "法定普残h", "法定割残h", "法外普残h", "法外割残h",
+    "残業時間h",
   ];
 
   const dayNames = ["日", "月", "火", "水", "木", "金", "土"];
@@ -43,11 +42,6 @@ export async function GET() {
         att.statutoryHoliday ? "1" : "0",
         att.nonStatutoryHoliday ? "1" : "0",
         String(att.overtimeNormal),
-        String(att.overtimePremium),
-        String(att.statHolOvertimeNormal),
-        String(att.statHolOvertimePremium),
-        String(att.nonStatHolOvertimeNormal),
-        String(att.nonStatHolOvertimePremium),
       ]);
     }
   }
