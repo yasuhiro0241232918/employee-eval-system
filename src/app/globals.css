@@ -3,6 +3,14 @@
 @tailwind utilities;
 
 /* 値が未入力の時間入力欄のプレースホルダーを非表示 */
-input[type="time"]::-webkit-datetime-edit { color: transparent; }
-input[type="time"]:focus::-webkit-datetime-edit { color: inherit; }
-input[type="time"][data-filled]::-webkit-datetime-edit { color: inherit; }
+input[type="time"]:not([data-filled]):not(:focus) {
+  color: transparent !important;
+}
+input[type="time"]:not([data-filled]):not(:focus)::-webkit-datetime-edit,
+input[type="time"]:not([data-filled]):not(:focus)::-webkit-datetime-edit-fields-wrapper,
+input[type="time"]:not([data-filled]):not(:focus)::-webkit-datetime-edit-hour-field,
+input[type="time"]:not([data-filled]):not(:focus)::-webkit-datetime-edit-minute-field,
+input[type="time"]:not([data-filled]):not(:focus)::-webkit-datetime-edit-text {
+  color: transparent !important;
+  visibility: hidden !important;
+}
