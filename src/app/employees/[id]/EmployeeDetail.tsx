@@ -414,6 +414,7 @@ function TimeInput({ value, onChange }: { value: string | null; onChange: (v: st
       onChange={e => onChange(e.target.value)}
       onBlur={() => setActive(false)}
       autoComplete="off"
+      data-filled={value ? "1" : undefined}
       className="w-[72px] text-xs border border-slate-200 rounded px-0.5 py-0.5 outline-none focus:border-blue-400"
     />
   );
