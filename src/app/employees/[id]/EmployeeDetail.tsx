@@ -348,18 +348,15 @@ function calcWorkHours(rec: AttRec): number | null {
   return 7.5;
 }
 
-function calcOvertime(startTime: string, endTime: string, isStatHol: boolean, isNonStatHol: boolean) {
+function calcOvertime(startTime: string, endTime: string, _isStatHol: boolean, _isNonStatHol: boolean) {
   const startMin = timeToMin(startTime);
   let endMin = timeToMin(endTime);
   if (endMin <= startMin) endMin += 24 * 60;
   if (endMin <= startMin) return null;
 
-  const overtimeNormal = isStatHol || isNonStatHol
-    ? +(netMins(startMin, endMin) / 60).toFixed(2)
-    : +((netMins(startMin, Math.min(endMin, 8*60)) + netMins(Math.max(startMin, 17*60), endMin)) / 60).toFixed(2);
-
+  const overtimeMin = Math.max(0, netMins(startMin, endMin) - 8 * 60);
   return {
-    overtimeNormal,
+    overtimeNormal: +(overtimeMin / 60).toFixed(2),
     overtimePremium: 0,
     statHolOvertimeNormal: 0, statHolOvertimePremium: 0,
     nonStatHolOvertimeNormal: 0, nonStatHolOvertimePremium: 0,
