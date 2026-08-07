@@ -748,7 +748,7 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
 
       {loading ? <p className="text-sm text-slate-400">読み込み中...</p> : (
         <div className="overflow-auto -mx-2 px-2" style={{ maxHeight: "calc(100vh - 360px)" }}>
-          <table className="text-xs border-collapse w-full">
+          <table className="text-xs border-collapse ml-auto">
             <thead className="sticky top-0 z-10 bg-white">
               <tr className="border-b-2 border-slate-200 text-center">
                 <th className="text-left pb-1.5 pr-2 text-slate-500 font-medium">日</th>
