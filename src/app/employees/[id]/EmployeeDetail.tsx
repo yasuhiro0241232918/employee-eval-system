@@ -373,31 +373,11 @@ function CB({ checked, onClick, color = "green", disabled = false }: { checked: 
 }
 
 function TimeInput({ value, onChange }: { value: string | null; onChange: (v: string) => void }) {
-  const [active, setActive] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (active && !value && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [active]);
-
-  if (!value && !active) {
-    return (
-      <button
-        type="button"
-        onClick={() => setActive(true)}
-        className="w-[72px] h-[22px] border border-slate-200 rounded block"
-      />
-    );
-  }
   return (
     <input
-      ref={inputRef}
       type="time"
       value={value ?? ""}
       onChange={e => onChange(e.target.value)}
-      onBlur={() => setActive(false)}
       autoComplete="off"
       data-filled={value ? "1" : undefined}
       className="w-[72px] text-xs border border-slate-200 rounded px-0.5 py-0.5 outline-none focus:border-blue-400"
@@ -587,6 +567,8 @@ function AttendanceTab({ employeeId, employeeName, initialPaidLeaveGranted }: { 
     if (updated.startTime && updated.endTime) {
       const ot = calcOvertime(updated.startTime, updated.endTime, updated.statutoryHoliday, updated.nonStatutoryHoliday);
       if (ot) Object.assign(updated, ot);
+    } else {
+      updated.overtimeNormal = 0;
     }
     saveDay(day, updated);
   }
